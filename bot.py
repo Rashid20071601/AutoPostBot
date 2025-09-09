@@ -5,6 +5,8 @@ from aiogram.types import Message
 import os
 from dotenv import load_dotenv
 
+from handlers import start
+
 
 # --------------- Настройка токена --------------- #
 load_dotenv()
@@ -23,9 +25,7 @@ dp = Dispatcher()
 
 # =============================  Регистрация обработчиков команд  ============================= #
 # Обработчик команды /start
-@dp.message(Command(commands="start"))
-async def send_welcome(message: Message):
-    await message.answer("Hello, world!")
+dp.message.register(start.send_welcome, Command(commands="start"))
 
 
 
