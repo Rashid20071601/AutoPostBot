@@ -1,9 +1,8 @@
 # Импорт библиотек
 from aiogram import Bot, Dispatcher
-from aiogram.filters import Command
-from aiogram.types import Message
-import os
+from aiogram.filters import Command, CommandStart
 from dotenv import load_dotenv
+import os
 
 from handlers import start
 
@@ -25,7 +24,7 @@ dp = Dispatcher()
 
 # =============================  Регистрация обработчиков команд  ============================= #
 # Обработчик команды /start
-dp.message.register(start.send_welcome, Command(commands="start"))
+dp.message.register(start.send_welcome, CommandStart)
 
 
 
