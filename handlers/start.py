@@ -14,11 +14,12 @@ ADMIN_ID = int(os.getenv('ADMIN_ID'))
 
 # ========================= Хендлеры приветствия ========================= #
 async def send_welcome(message: Message):
-    if str(message.from_user.id) not in ADMIN_ID:
+    if message.from_user.id != ADMIN_ID:
         await message.answer(texts.not_admin, parse_mode="HTML")
         return
-    await message.answer(
-        texts.is_admin,
-        reply_markup=inline.admin_main_kb(),
-        parse_mode="HTML"
-    )
+    elif message.from_user.id == ADMIN_ID:
+        await message.answer(
+            texts.is_admin,
+            reply_markup=inline.admin_main_kb(),
+            parse_mode="HTML"
+        )
