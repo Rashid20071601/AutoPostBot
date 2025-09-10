@@ -1,10 +1,10 @@
 # Импорт библиотек
-from aiogram import Bot, Dispatcher
-from aiogram.filters import Command, CommandStart
+from aiogram import Bot, Dispatcher, F
+from aiogram.filters import Command
 from dotenv import load_dotenv
 import os
 
-from handlers import start
+from handlers import start, back
 
 
 # --------------- Настройка токена --------------- #
@@ -24,7 +24,13 @@ dp = Dispatcher()
 
 # =============================  Регистрация обработчиков команд  ============================= #
 # Обработчик команды /start
-dp.message.register(start.send_welcome, CommandStart)
+dp.message.register(start.send_welcome, Command(commands="start"))
+
+# Обработчик команды /help
+dp.message.register(start.send_help, Command(commands="help"))
+
+# Обработчик нажатия кнопки "Назад"
+dp.callback_query.register(back.back_to_menu, F.data=="back_to_menu")
 
 
 

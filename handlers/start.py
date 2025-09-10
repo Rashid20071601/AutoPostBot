@@ -23,3 +23,6 @@ async def send_welcome(message: Message):
             reply_markup=inline.admin_main_kb(),
             parse_mode="HTML"
         )
+
+async def send_help(message: Message):
+    await message.answer(texts.help_text, parse_mode="HTML")
