@@ -35,7 +35,7 @@ dp.message.register(start.send_help, Command(commands="help"))
 dp.callback_query.register(callback.back_to_menu, F.data=="back_to_menu")
 
 # Обработчик нажатия кнопки "Создать рассылку"
-
+dp.callback_query.register(callback.create_post, F.data=="create_post")
 
 
 
