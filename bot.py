@@ -1,8 +1,9 @@
-# Импорт библиотек
+# Import libraries
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from dotenv import load_dotenv
 import os
+import logging
 
 from handlers import callback, start
 
@@ -19,6 +20,19 @@ if not BOT_TOKEN:
 # --------------- Инициализация бота и диспетчера --------------- #
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
+
+
+# --------------- Настройка логирования --------------- #
+formatter = logging.Formatter(
+    '[{asctime}] #{levelname:8} {filename}:{lineno} - {name} - {message}',
+    style='{'
+)
+
+file_handler = logging.FileHandler('logs.log', encoding="utf-8", mode='w')
+file_handler.setFormatter(formatter)
+logging.basicConfig(level=logging.INFO, handlers=[file_handler])
+logger = logging.getLogger(__name__)
+logger.info("Бот запущен!...")
 
 
 

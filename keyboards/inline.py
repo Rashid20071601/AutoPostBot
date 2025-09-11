@@ -1,4 +1,11 @@
+# Import libraries
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+logger.info("Загрузка клавиатур...")
 
 def admin_main_kb():
     return InlineKeyboardMarkup(
@@ -14,3 +21,5 @@ def back_to_menu_kb():
             [InlineKeyboardButton(text="🔙 Вернуться", callback_data="back_to_menu")]
         ]
     )
+
+logger.info("Клавиатуры загружены!")
