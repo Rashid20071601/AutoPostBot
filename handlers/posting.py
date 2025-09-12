@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Запрос текста поста
 async def handle_create_mailing(callback: CallbackQuery, state: FSMContext):
     logger.info("Пользователь {callback.from_user.id} нажал на кнопку 'Создать пост'...")
-    await callback.message.answer(
+    await callback.message.edit_text(
         texts.get_post,
         reply_markup=inline.back_to_menu_kb(),
         parse_mode="HTML"

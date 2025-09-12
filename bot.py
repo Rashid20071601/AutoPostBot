@@ -1,8 +1,7 @@
 # Import libraries
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from dotenv import load_dotenv
-import os
+from environs import Env
 import logging
 
 from handlers import posting, start, back
@@ -10,9 +9,10 @@ from config import PostState
 
 
 # --------------- Настройка токена --------------- #
-load_dotenv()
+env = Env()
+env.read_env()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = env("BOT_TOKEN")
 
 if not BOT_TOKEN:
     raise RuntimeError("Переменная окружения BOT_TOKEN не найдена. Проверь .env файл.")
