@@ -22,5 +22,5 @@ async def send_welcome(message: Message):
 
 async def send_help(message: Message):
     logger.info("Пользователь {message.from_user.id} нажал на кнопку '/help'")
-    await message.answer(texts.help_text, parse_mode="HTML")
+    await message.answer(texts.help, parse_mode="HTML")
     logger.info("Бот ответил пользователю {message.from_user.id}")

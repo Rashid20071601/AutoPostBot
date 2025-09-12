@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 import os
 import logging
 
-from handlers import callback, start
+from handlers import posting, start, back
+from config import PostState
 
 
 # --------------- Настройка токена --------------- #
@@ -44,12 +45,18 @@ dp.message.register(start.send_welcome, Command(commands="start"))
 dp.message.register(start.send_help, Command(commands="help"))
 
 
-# =============================  Регистрация callback обработчиков  ============================= #
+# =============================  Регистрация хендлеров  ============================= #
 # Обработчик нажатия кнопки "Вернуться"
-dp.callback_query.register(callback.back_to_menu, F.data=="back_to_menu")
+dp.callback_query.register(back.back_to_menu, F.data=="back_to_menu")
 
 # Обработчик нажатия кнопки "Создать рассылку"
-dp.callback_query.register(callback.create_post, F.data=="create_post")
+dp.callback_query.register(posting.handle_create_mailing, F.data=="create_post")
+
+# Обработчик хендлера для ввода текста рассылки
+dp.message.register(posting.handle_mailing_text, PostState.text)
+
+# Обработчик хендлера для ввода интервала публикации
+dp.message.register(posting.handle_mailing_interval, PostState.interval)
 
 
 

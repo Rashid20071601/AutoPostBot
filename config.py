@@ -9,7 +9,7 @@ logger.info("Загрузка конфига...")
 
 class PostState(StatesGroup):
     text = State()
-    period = State()
+    interval = State()
     chanel = State()
 
 logger.info("Конфиг загружен!")
