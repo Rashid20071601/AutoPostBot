@@ -1,21 +1,11 @@
 # Import libraries
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from environs import Env
 import logging
 
 from handlers import posting, start, back
 from config import PostState
-
-
-# --------------- Настройка токена --------------- #
-env = Env()
-env.read_env()
-
-BOT_TOKEN = env("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    raise RuntimeError("Переменная окружения BOT_TOKEN не найдена. Проверь .env файл.")
+from config import BOT_TOKEN
 
 
 # --------------- Инициализация бота и диспетчера --------------- #
@@ -31,7 +21,7 @@ formatter = logging.Formatter(
 
 file_handler = logging.FileHandler('logs.log', encoding="utf-8", mode='w')
 file_handler.setFormatter(formatter)
-logging.basicConfig(level=logging.INFO, handlers=[file_handler])
+logging.basicConfig(level=logging.DEBUG, handlers=[file_handler])
 logger = logging.getLogger(__name__)
 logger.info("Бот запущен!...")
 
@@ -57,6 +47,9 @@ dp.message.register(posting.handle_mailing_text, PostState.text)
 
 # Обработчик хендлера для ввода интервала публикации
 dp.message.register(posting.handle_mailing_interval, PostState.interval)
+
+# Обработчик хендлера для ввода ID канала
+dp.message.register(posting.handle_mailing_chanel, PostState.chanel)
 
 
 

@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-logger.info("Загрузка клавиатур...")
+logger.debug("Загрузка клавиатур...")
 
 def admin_main_kb():
     return InlineKeyboardMarkup(
