@@ -3,9 +3,9 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 import logging
 
-from handlers import posting, start, back
-from config import PostState
-from config import BOT_TOKEN
+from handlers import user
+from states.states import PostState
+from config.config import BOT_TOKEN
 
 
 # --------------- Инициализация бота и диспетчера --------------- #
@@ -29,27 +29,27 @@ logger.info("Бот запущен!...")
 
 # =============================  Регистрация обработчиков команд  ============================= #
 # Обработчик команды /start
-dp.message.register(start.send_welcome, Command(commands="start"))
+dp.message.register(user.send_welcome, Command(commands="start"))
 
 # Обработчик команды /help
-dp.message.register(start.send_help, Command(commands="help"))
+dp.message.register(user.send_help, Command(commands="help"))
 
 
 # =============================  Регистрация хендлеров  ============================= #
 # Обработчик нажатия кнопки "Вернуться"
-dp.callback_query.register(back.back_to_menu, F.data=="back_to_menu")
+dp.callback_query.register(user.back_to_menu, F.data=="back_to_menu")
 
 # Обработчик нажатия кнопки "Создать рассылку"
-dp.callback_query.register(posting.handle_create_mailing, F.data=="create_post")
+dp.callback_query.register(user.handle_create_mailing, F.data=="create_post")
 
 # Обработчик хендлера для ввода текста рассылки
-dp.message.register(posting.handle_mailing_text, PostState.text)
+dp.message.register(user.handle_mailing_text, PostState.text)
 
 # Обработчик хендлера для ввода интервала публикации
-dp.message.register(posting.handle_mailing_interval, PostState.interval)
+dp.message.register(user.handle_mailing_interval, PostState.interval)
 
 # Обработчик хендлера для ввода ID канала
-dp.message.register(posting.handle_mailing_chanel, PostState.chanel)
+dp.message.register(user.handle_mailing_chanel, PostState.chanel)
 
 
 

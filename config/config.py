@@ -1,5 +1,4 @@
 # Import libraries
-from aiogram.fsm.state import State, StatesGroup
 import logging
 from environs import Env
 
@@ -8,13 +7,6 @@ logger = logging.getLogger(__name__)
 
 logger.debug("Загрузка конфига...")
 
-
-
-# --------------- Настройка состояний --------------- #
-class PostState(StatesGroup):
-    text = State()
-    interval = State()
-    chanel = State()
 
 # --------------- Настройка токена --------------- #
 env = Env()
