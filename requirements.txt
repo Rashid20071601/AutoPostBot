@@ -4,3 +4,4 @@ environs==14.3.0
 pydantic==2.11.7
 magic-filter==1.0.12
 aiofiles==24.1.0
+aiosqlite==0.21.0

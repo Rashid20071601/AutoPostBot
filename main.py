@@ -11,6 +11,7 @@ from config.config import BOT_TOKEN
 # --------------- Инициализация бота и диспетчера --------------- #
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
+dp.workflow_data.update({"bot": bot})
 
 
 # --------------- Настройка логирования --------------- #

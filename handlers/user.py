@@ -6,14 +6,11 @@ import logging
 
 from lexicon import lexicon_ru
 from keyboards import keyboard_utils
-from config.config import BOT_TOKEN
 from states.states import PostState
 
 
 
-# --------------- Инициализация бота и логирования --------------- #
-bot = Bot(token=BOT_TOKEN)
-
+# --------------- Инициализация логирования --------------- #
 logger = logging.getLogger(__name__)
 
 
@@ -90,7 +87,7 @@ async def handle_mailing_interval(message: Message, state: FSMContext):
         await send_welcome(message=message)
 
 # Обработка поста
-async def handle_mailing_chanel(message: Message, state: FSMContext):
+async def handle_mailing_chanel(message: Message, state: FSMContext, bot:Bot):
     logger.info("Пользователь {message.from_user.id} ввел ID группы...")
     try:
         logger.debug("Преобразование ID группы в int...")
