@@ -1,60 +1,30 @@
-# Import libraries
-from aiogram import Bot, Dispatcher, F
-from aiogram.filters import Command
+import asyncio
 import logging
 
+from aiogram import Bot, Dispatcher
+from config.config import Config, load_config
 from handlers import user
-from states.states import PostState
-from config.config import BOT_TOKEN
-
-
-# --------------- Инициализация бота и диспетчера --------------- #
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
-dp.workflow_data.update({"bot": bot})
-
-
-# --------------- Настройка логирования --------------- #
-formatter = logging.Formatter(
-    '[{asctime}] #{levelname:8} {filename}:{lineno} - {name} - {message}',
-    style='{'
-)
-
-file_handler = logging.FileHandler('logs.log', encoding="utf-8", mode='w')
-file_handler.setFormatter(formatter)
-logging.basicConfig(level=logging.DEBUG, handlers=[file_handler])
-logger = logging.getLogger(__name__)
-logger.info("Бот запущен!...")
 
 
 
-# =============================  Регистрация обработчиков команд  ============================= #
-# Обработчик команды /start
-dp.message.register(user.send_welcome, Command(commands="start"))
+# Функция конфигурирования и запуска бота
+async def main() -> None:
+    config: Config = load_config()
 
-# Обработчик команды /help
-dp.message.register(user.send_help, Command(commands="help"))
+    logging.basicConfig(
+        level=logging.getLevelName(level=config.log.level),
+        format=config.log.format,
+        style='{'
+    )
 
+    bot = Bot(token=config.bot.token)
+    dp = Dispatcher()
+    dp.workflow_data.update({"bot": bot})
 
-# =============================  Регистрация хендлеров  ============================= #
-# Обработчик нажатия кнопки "Вернуться"
-dp.callback_query.register(user.back_to_menu, F.data=="back_to_menu")
+    dp.include_router(user.router)
 
-# Обработчик нажатия кнопки "Создать рассылку"
-dp.callback_query.register(user.handle_create_mailing, F.data=="create_post")
-
-# Обработчик хендлера для ввода текста рассылки
-dp.message.register(user.handle_mailing_text, PostState.text)
-
-# Обработчик хендлера для ввода интервала публикации
-dp.message.register(user.handle_mailing_interval, PostState.interval)
-
-# Обработчик хендлера для ввода ID канала
-dp.message.register(user.handle_mailing_chanel, PostState.chanel)
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
 
 
-
-
-# Run polling
-if __name__ == '__main__':
-    dp.run_polling(bot)
+asyncio.run(main())

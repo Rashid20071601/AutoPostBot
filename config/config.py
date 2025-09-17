@@ -1,22 +1,26 @@
-# Import libraries
-import logging
+from dataclasses import dataclass
 from environs import Env
 
-logger = logging.getLogger(__name__)
+
+@dataclass
+class TgBot:
+    token: str
+
+@dataclass
+class LogSettings:
+    level: str
+    format: str
+
+@dataclass
+class Config:
+    bot: TgBot
+    log: LogSettings
 
 
-logger.debug("Загрузка конфига...")
-
-
-# --------------- Настройка токена --------------- #
-env = Env()
-env.read_env()
-
-BOT_TOKEN = env("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    raise RuntimeError("Переменная окружения BOT_TOKEN не найдена. Проверь .env файл.")
-
-
-
-logger.info("Конфиг загружен!")
+def load_config(path: str | None = None) -> Config:
+    env = Env()
+    env.read_env(path)
+    return Config(
+        bot=TgBot(token=env("BOT_TOKEN")),
+        log=LogSettings(level=env("LOG_LEVEL"), format=env("LOG_FORMAT"))
+    )
