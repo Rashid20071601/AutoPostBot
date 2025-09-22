@@ -11,7 +11,8 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS mailings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 text TEXT,
-                interval REAL,
+                hour INT,
+                minute INT,
                 channel_id INTEGER,
                 enabled INTEGER DEFAULT 1,
                 last_sent REAL DEFAULT 0
@@ -22,11 +23,11 @@ async def init_db():
 
 # ---------------------- CRUD ---------------------- #
 # Фунция добавления поста
-async def add_mailing(text, interval, channel_id):
+async def add_mailing(text, hour, minute, channel_id):
     async with aiosqlite.connect(DB) as db:
         await db.execute(
-            'INSERT INTO mailings (text, interval, channel_id) VALUES (?, ?, ?)',
-            (text, interval, channel_id)
+            'INSERT INTO mailings (text, hour, minute, channel_id) VALUES (?, ?, ?, ?)',
+            (text, hour, minute, channel_id)
             )
         await db.commit()
 
@@ -46,14 +47,17 @@ async def get_mailing(mailing_id: int) -> Optional[Tuple]:
 async def update_mailing(
         mailing_id: int,
         text: Optional[str] = None,
-        interval: Optional[int] = None,
+        hour: Optional[int] = None,
+        minute: Optional[int] = None,
         enabled: Optional[int] = None
     ) -> None:
     async with aiosqlite.connect(DB) as db:
         if text is not None:
             await db.execute('UPDATE mailings SET text=? WHERE id=?', (text, mailing_id))
-        if interval is not None:
-            await db.execute('UPDATE mailings SET interval=? WHERE id=?', (interval, mailing_id))
+        if hour is not None:
+            await db.execute('UPDATE mailings SET hour=? WHERE id=?', (hour, mailing_id))
+        if minute is not None:
+            await db.execute('UPDATE mailings SET minute=? WHERE id=?', (minute, mailing_id))
         if enabled is not None:
             await db.execute('UPDATE mailings SET enabled=? WHERE id=?', (enabled, mailing_id))
         await db.commit()

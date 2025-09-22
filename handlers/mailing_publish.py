@@ -4,10 +4,11 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from zoneinfo import ZoneInfo
 import logging
 import time
 
-from lexicon.lexicon_ru import LEXICON_RU
+from lexicon.lexicon import LEXICON_RU
 from keyboards import keyboard_utils
 from database.db import add_mailing, update_last_sent, get_mailings
 from states.states import MailingState
@@ -16,12 +17,10 @@ from states.states import MailingState
 # ========================= Инициализация логирования и роутера ========================= #
 logger = logging.getLogger(__name__)
 router = Router()
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler(timezone=ZoneInfo("Europe/Moscow"))
 
 
 # ========================= Хендлеры приветствия и помощи ========================= #
-# /start
-@router.message(Command(commands="start"))
 async def send_welcome(message: Message):
     logger.info(f"Пользователь {message.from_user.id} нажал на кнопку '/start'...")
     await message.answer(
@@ -32,8 +31,6 @@ async def send_welcome(message: Message):
     logger.info(f"Бот ответил пользователю {message.from_user.id}")
 
 
-# /help
-@router.message(Command(commands="help"))
 async def send_help(message: Message):
     logger.info(f"Пользователь {message.from_user.id} нажал на кнопку '/help'")
     await message.answer(
@@ -44,8 +41,6 @@ async def send_help(message: Message):
 
 
 # ========================= Хендлеры создания поста ========================= #
-# Запрос текста поста
-@router.callback_query(F.data == "create_post")
 async def create_mailing(callback: CallbackQuery, state: FSMContext):
     logger.info(f"Пользователь {callback.from_user.id} нажал на кнопку 'Создать пост'...")
     await callback.message.edit_text(
@@ -59,8 +54,6 @@ async def create_mailing(callback: CallbackQuery, state: FSMContext):
     logger.info(f"Пользователь {callback.from_user.id} перешел в режим создания поста!")
 
 
-# Запрос интервала
-@router.message(MailingState.text)
 async def mailing_text(message: Message, state: FSMContext):
     logger.info(f"Пользователь {message.from_user.id} ввел текст поста...")
     await state.update_data(text=message.text)
@@ -70,35 +63,33 @@ async def mailing_text(message: Message, state: FSMContext):
         reply_markup=keyboard_utils.back_to_menu_kb(),
         parse_mode="HTML"
     )
-    await state.set_state(MailingState.interval)
-    logger.info(f"Пользователь {message.from_user.id} ввел интервал!")
+    await state.set_state(MailingState.hour)
+    logger.info(f"Пользователь {message.from_user.id} ввел час публикации!")
 
 
-# Запрос ID группы
-@router.message(MailingState.interval)
-async def mailing_interval(message: Message, state: FSMContext):
-    logger.info(f"Пользователь {message.from_user.id} ввел интервал")
+async def mailing_hour(message: Message, state: FSMContext):
+    logger.info(f"Пользователь {message.from_user.id} ввел час публикации")
 
     try:
-        logger.debug("Преобразование интервала в int...")
-        interval = int(message.text)
+        logger.debug("Преобразование часа в int...")
+        hour = int(message.text)
 
-        if interval < 1:
-            logger.exception("Интервал меньше 1!")
+        if hour < 1:
+            logger.exception("Час меньше 1!")
             raise ValueError
 
-        await state.update_data(interval=interval)
+        await state.update_data(hour=hour)
 
         await message.answer(
-            text=LEXICON_RU['get_channel_id'],
+            text=LEXICON_RU['get_interval'],
             reply_markup=keyboard_utils.back_to_menu_kb(),
-            parse_mode="HTML",
+            parse_mode="HTML"
         )
-        await state.set_state(MailingState.chanel)
-        logger.info(f"Интервал {interval} успешно установлен!")
+        await state.set_state(MailingState.minute)
+        logger.info(f"Пользователь {message.from_user.id} ввел час публикации!")
 
     except ValueError:
-        logger.exception(f"Пользователь {message.from_user.id} ввел некорректный интервал!")
+        logger.exception(f"Пользователь {message.from_user.id} ввел некорректный час!")
         await message.answer(
             text=LEXICON_RU['interval_error'],
             parse_mode="HTML"
@@ -107,8 +98,37 @@ async def mailing_interval(message: Message, state: FSMContext):
         await send_welcome(message=message)
 
 
-# Обработка поста
-@router.message(MailingState.chanel)
+async def mailing_minute(message: Message, state: FSMContext):
+    logger.info(f"Пользователь {message.from_user.id} ввел минуты публикации")
+
+    try:
+        logger.debug("Преобразование минут в int...")
+        minute = int(message.text)
+
+        if minute < 1:
+            logger.exception("Минуты меньше 1!")
+            raise ValueError
+
+        await state.update_data(minute=minute)
+
+        await message.answer(
+            text=LEXICON_RU['get_channel_id'],
+            reply_markup=keyboard_utils.back_to_menu_kb(),
+            parse_mode="HTML",
+        )
+        await state.set_state(MailingState.chanel)
+        logger.info(f"Минуты {minute} успешно установлены!")
+
+    except ValueError:
+        logger.exception(f"Пользователь {message.from_user.id} ввел некорректные минуты!")
+        await message.answer(
+            text=LEXICON_RU['interval_error'],
+            parse_mode="HTML"
+        )
+        await state.clear()
+        await send_welcome(message=message)
+
+
 async def mailing_chanel(message: Message, state: FSMContext, bot: Bot):
     logger.info(f"Пользователь {message.from_user.id} ввел ID группы...")
 
@@ -139,8 +159,9 @@ async def mailing_chanel(message: Message, state: FSMContext, bot: Bot):
         await state.clear()
         await send_welcome(message=message)
 
+    logger.info("Тестовое сообщение успешно отправлено!")
     data = await state.get_data()
-    await add_mailing(data["text"], data["interval"], chanel_id)
+    await add_mailing(data["text"], data["hour"], data["minute"], chanel_id)
     await message.answer(
         text=LEXICON_RU['mailing_created'],
         parse_mode="HTML"
@@ -162,12 +183,13 @@ async def load_mailings(bot: Bot) -> None:
     try:
         mailings = await get_mailings()
         for m in mailings:
-            mailing_id, text, interval, channel_id, enabled, last_sent = m
+            mailing_id, text, hour, minute, channel_id, enabled, last_sent = m
             if enabled:
                 scheduler.add_job(
                     send_mailing,
-                    "interval",
-                    minutes=interval,
+                    trigger="cron",
+                    hour=hour,
+                    minute=minute,
                     args=[mailing_id, text, channel_id, bot],
                     id=str(mailing_id),
                     replace_existing=True
@@ -176,9 +198,6 @@ async def load_mailings(bot: Bot) -> None:
         logger.exception(f"Ошибка отправки в канал {channel_id}")
 
 
-
-# ========================= Хендлеры кнопки "Назад" ========================= #
-@router.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     logger.info(f"Пользователь {callback.from_user.id} нажал на кнопку 'Назад'...")
     await state.clear()
@@ -192,3 +211,31 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.answer()
     logger.info(f"Пользователь {callback.from_user.id} вернулся в главное меню!")
+
+
+
+
+# ========================= Регистрация хэндлеров ========================= #
+# /start
+router.message.register(send_welcome, Command(commands="start"))
+
+# /help
+router.message.register(send_help, Command(commands="help"))
+
+# Запрос текста поста
+router.callback_query.register(create_mailing, F.data == "create_post")
+
+# Запрос часов
+router.message.register(mailing_text, MailingState.text)
+
+# Запрос минут
+router.message.register(mailing_hour, MailingState.hour)
+
+# Запрос ID группы
+router.message.register(mailing_minute, MailingState.minute)
+
+# Обработка поста
+router.message.register(mailing_chanel, MailingState.chanel)
+
+# Кнопка "Назад"
+router.callback_query.register(back_to_menu, F.data == "back_to_menu")

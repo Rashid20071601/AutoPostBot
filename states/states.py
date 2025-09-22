@@ -11,7 +11,8 @@ logger.debug("Загрузка состояний...")
 # --------------- Настройка состояний --------------- #
 class MailingState(StatesGroup):
     text = State()
-    interval = State()
+    hour = State()
+    minute = State()
     chanel = State()
 
 

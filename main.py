@@ -3,9 +3,9 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from config.config import Config, load_config
-from handlers import user
+from handlers import mailing_publish, mailing_manage
 from database.db import init_db
-from handlers.user import load_mailings, scheduler
+from handlers.mailing_publish import load_mailings, scheduler
 
 
 
@@ -27,7 +27,8 @@ async def main() -> None:
     await init_db()
 
     # 2. Подключение роутеров
-    dp.include_router(user.router)
+    dp.include_router(mailing_publish.router)
+    dp.include_router(mailing_manage.router)
 
     # 3. Запуск фонового воркера
     asyncio.create_task(load_mailings(bot))

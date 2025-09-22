@@ -37,3 +37,7 @@ htmlcov/
 .pyre/
 .pytype/
 __pypackages__/
+
+
+# Database
+*.db
