@@ -9,7 +9,7 @@ logger.debug("Загрузка состояний...")
 
 
 # --------------- Настройка состояний --------------- #
-class PostState(StatesGroup):
+class MailingState(StatesGroup):
     text = State()
     interval = State()
     chanel = State()

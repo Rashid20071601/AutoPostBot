@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 logger.debug("Загрузка клавиатур...")
 
-def admin_main_kb():
+def main_kb():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📝 Создать рассылку", callback_data="create_post")],
