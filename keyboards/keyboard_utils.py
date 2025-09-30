@@ -11,7 +11,8 @@ def main_kb():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📝 Создать рассылку", callback_data="create_post")],
-            [InlineKeyboardButton(text="📋 Управление рассылками", callback_data="manage_mailings")]
+            [InlineKeyboardButton(text="📋 Управление рассылками", callback_data="manage_mailings")],
+            [InlineKeyboardButton(text="🆘 Помощь", callback_data="help")],
         ]
     )
 
