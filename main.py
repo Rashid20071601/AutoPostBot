@@ -13,6 +13,12 @@ from database.db import init_db
 
 # Функция конфигурирования и запуска бота
 async def main() -> None:
+    """
+    Точка входа в приложение.
+    Выполняет настройку логирования, инициализацию базы,
+    регистрацию роутеров и запуск бота.
+    """
+
     config: Config = load_config()
 
     logging.basicConfig(
@@ -42,8 +48,14 @@ async def main() -> None:
     # scheduler.start()
 
     # 5. Старт бота
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    logging.info("🚀 Bot is starting...")
+
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        await dp.start_polling(bot)
+    finally:
+        logging.info("🛑 Bot is stopping...")
+        await bot.close()
 
 
 if __name__ == "__main__":
