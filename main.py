@@ -2,11 +2,13 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram_dialog import setup_dialogs
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 
 from config.config import Config, load_config
 from handlers import mailing_fsm, mailing_manage
 from services.mailing_datetime import mailing_dialog
-from utils import back
+from utils import back, scheduler
 from database.db import init_db
 
 
@@ -27,7 +29,7 @@ async def main() -> None:
         style='{'
     )
 
-    bot = Bot(token=config.bot.token)
+    bot = Bot(token=config.bot.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
     dp.workflow_data.update({"bot": bot})
 
@@ -44,8 +46,7 @@ async def main() -> None:
     setup_dialogs(dp)
 
     # 4. Запуск фонового воркера
-    # asyncio.create_task(load_mailings(bot))
-    # scheduler.start()
+    scheduler.start_scheduler()
 
     # 5. Старт бота
     logging.info("🚀 Bot is starting...")

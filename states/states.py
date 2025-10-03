@@ -7,4 +7,4 @@ class MailingState(StatesGroup):
     date = State()
     hour = State()
     minute = State()
-    chanel = State()
+    channel = State()
