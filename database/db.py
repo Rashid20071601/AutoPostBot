@@ -1,49 +1,48 @@
-# Import libraries
-import aiosqlite
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import insert, delete, update, select
 from typing import List, Tuple, Optional
 
-# ---------------------- Инициализация БД ---------------------- #
-DB = 'mailing.db'
-
-async def init_db():
-    async with aiosqlite.connect(DB) as db:
-        await db.execute('''
-            CREATE TABLE IF NOT EXISTS mailings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                text TEXT,
-                hour INT,
-                minute INT,
-                channel_id INTEGER,
-                enabled INTEGER DEFAULT 1,
-                last_sent REAL DEFAULT 0
-            )
-        ''')
-        await db.commit()
+from database.connection import db_url_asyncpg
+from database.models import metadata_obj, users, channels, mailings
 
 
-# ---------------------- CRUD ---------------------- #
-# Фунция добавления поста
+
+async_engine = create_async_engine(
+    url=db_url_asyncpg(),
+    echo=True,
+    pool_size=5,
+    max_overflow=10
+)
+
+async def create_table():
+    async_engine.echo=False
+    async with async_engine.begin() as conn:
+        await conn.run_sync(metadata_obj.create_all)
+    async_engine.echo=True
+
+
 async def add_mailing(text, hour, minute, channel_id):
-    async with aiosqlite.connect(DB) as db:
-        await db.execute(
-            'INSERT INTO mailings (text, hour, minute, channel_id) VALUES (?, ?, ?, ?)',
-            (text, hour, minute, channel_id)
+    async with async_engine.begin() as conn:
+        await conn.execute(
+            insert(mailings).values(
+                text=text,
+                hour=hour,
+                minute=minute,
+                channel_id=channel_id,
             )
-        await db.commit()
+        )
+        await conn.commit()
 
-# Фунция получения всех постов
 async def get_mailings() -> List[Tuple]:
-    async with aiosqlite.connect(DB) as db:
-        async with db.execute('SELECT * FROM mailings') as cursor:
-            return await cursor.fetchall()
+    async with async_engine.begin() as conn:
+        async with conn.execute(select(mailings)) as res:
+            return res.fetchall()
 
-# Фунция получения конкректного поста
 async def get_mailing(mailing_id: int) -> Optional[Tuple]:
-    async with aiosqlite.connect(DB) as db:
-        async with db.execute('SELECT * FROM mailings WHERE id=?', (mailing_id,)) as cursor:
-            return await cursor.fetchone()
+    async with async_engine.begin() as conn:
+        async with conn.execute(select(mailings).where(mailings.c.id==mailing_id)) as res:
+            return res.fetchone()
 
-# Фунция обновления поста
 async def update_mailing(
         mailing_id: int,
         text: Optional[str] = None,
@@ -51,25 +50,24 @@ async def update_mailing(
         minute: Optional[int] = None,
         enabled: Optional[int] = None
     ) -> None:
-    async with aiosqlite.connect(DB) as db:
-        if text is not None:
-            await db.execute('UPDATE mailings SET text=? WHERE id=?', (text, mailing_id))
-        if hour is not None:
-            await db.execute('UPDATE mailings SET hour=? WHERE id=?', (hour, mailing_id))
-        if minute is not None:
-            await db.execute('UPDATE mailings SET minute=? WHERE id=?', (minute, mailing_id))
-        if enabled is not None:
-            await db.execute('UPDATE mailings SET enabled=? WHERE id=?', (enabled, mailing_id))
-        await db.commit()
+    async with async_engine.begin() as conn:
+        values = {k:v for k,v in {
+            "text":text,
+            "hour":hour,
+            "minute":minute,
+            "enabled":enabled,
+        }.items() if v is not None}
 
-# Функция удаления поста
+        if values:
+            await conn.execute(update(mailings).where(mailings.c.id==mailing_id).values(**values))
+        await conn.commit()
+
 async def delete_mailing(mailing_id: int) -> None:
-    async with aiosqlite.connect(DB) as db:
-        await db.execute('DELETE FROM mailings WHERE id=?', (mailing_id,))
-        await db.commit()
+    async with async_engine.begin() as conn:
+        await conn.execute(delete(mailings).where(mailings.c.id==mailing_id))
+        await conn.commit()
 
-# Функция обновления времени последней отправки
 async def update_last_sent(mailing_id: int, timestamp: int) -> None:
-    async with aiosqlite.connect(DB) as db:
-        await db.execute('UPDATE mailings SET last_sent=? WHERE id=?', (timestamp, mailing_id))
-        await db.commit()
+    async with async_engine.begin() as conn:
+        await conn.execute(update(mailings).where(mailings.c.id==mailing_id).values(last_sent=timestamp))
+        await conn.commit()

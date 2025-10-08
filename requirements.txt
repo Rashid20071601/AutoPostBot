@@ -7,3 +7,6 @@ magic-filter==1.0.12
 aiofiles==24.1.0
 aiosqlite==0.21.0
 APScheduler==3.11.0
+psycopg-binary==3.2.10
+asyncpg==0.30.0
+SQLAlchemy==2.0.43

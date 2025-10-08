@@ -5,7 +5,7 @@ import logging
 
 
 @dataclass
-class TgBot:
+class TgBotSettings:
     token: str
 
 @dataclass
@@ -19,15 +19,31 @@ class LogSettings:
         return getattr(logging, self.level.upper(), logging.INFO)
 
 @dataclass
+class DBSettings:
+    host: str
+    port: int
+    user: str
+    password: str
+    name: str
+
+@dataclass
 class Config:
-    bot: TgBot
+    bot: TgBotSettings
     log: LogSettings
+    db: DBSettings
 
 
 def load_config(path: Optional[str] = None) -> Config:
     env = Env()
     env.read_env(path)
     return Config(
-        bot=TgBot(token=env.str("BOT_TOKEN", default="")),
-        log=LogSettings(level=env("LOG_LEVEL"), format=env("LOG_FORMAT"))
+        bot=TgBotSettings(token=env.str("BOT_TOKEN", default="")),
+        log=LogSettings(level=env("LOG_LEVEL"), format=env("LOG_FORMAT")),
+        db=DBSettings(
+            host=env.str("POSTGRES_HOST"),
+            port=env.int("POSTGRES_PORT"),
+            user=env.str("POSTGRES_USER"),
+            password=env.str("POSTGRES_PASSWORD"),
+            name=env.str("POSTGRES_DB"),
+        ),
     )

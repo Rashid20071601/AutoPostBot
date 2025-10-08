@@ -2,6 +2,7 @@ from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Calendar, Select, Group
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram.types import CallbackQuery
+from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest, TelegramNotFound
 import logging
 
 from lexicon.lexicon import LEXICON_RU
@@ -57,11 +58,47 @@ async def on_channel_selected(
         dialog_manager: DialogManager,
         item_id: str
 ):
-    dialog_manager.dialog_data["chanel"] = int(item_id)
-    await dialog_manager.done()
-    # await call.message.edit_text(
-    #     text=LEXICON_RU[""]
-    # )
+    channel_id = int(item_id)
+    dialog_manager.dialog_data["channel"] = channel_id
+
+    try:
+        chat_member = await callback.bot.get_chat_member(channel_id, callback.bot.id)
+        if chat_member.status not in ("administrator", "creator"):
+            raise TelegramForbiddenError("Bot is not an admin in the channel")
+        test_msg = await callback.bot.send_message(channel_id, LEXICON_RU["test_message"])
+        await callback.bot.delete_message(channel_id, test_msg.message_id)
+
+    except (TelegramBadRequest, TelegramForbiddenError, TelegramNotFound) as e:
+        logger.error(
+            "Failed to send or delete test message",
+            extra={
+                "user_id": callback.message.from_user.id,
+                "channel_id": channel_id,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            }
+        )
+        await callback.message.answer(
+            text=LEXICON_RU['mailing_message_error'],
+        )
+        return
+
+    except Exception:
+        logger.exception(
+            "Unexpected error in set_mailing_channel",
+            extra={
+                "user_id": callback.message.from_user.id,
+                "chanel_id": channel_id,
+            }
+        )
+        await callback.message.answer(
+            text=LEXICON_RU['unexpected_error'],
+        )
+        return
+
+    # data = dialog_manager.dialog_data
+    # date, hour, minute = data.get("date"), data.get("hout"), data.get("minute")
+    await callback.message.answer(LEXICON_RU["mailing_created"])
 
 
 # ===================== Окна ===================== #

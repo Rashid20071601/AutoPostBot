@@ -6,10 +6,10 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from config.config import Config, load_config
-from handlers import mailing_fsm, mailing_manage
+from handlers import mailing_fsm
 from services.mailing_datetime import mailing_dialog
-from utils import back, scheduler
-from database.db import init_db
+from utils import back
+from database.db import create_table
 
 
 
@@ -34,11 +34,10 @@ async def main() -> None:
     dp.workflow_data.update({"bot": bot})
 
     # 1. Инициализация базы
-    await init_db()
+    await create_table()
 
     # 2. Подключение роутеров
     dp.include_router(mailing_fsm.router)
-    dp.include_router(mailing_manage.router)
     dp.include_router(back.router)
     dp.include_router(mailing_dialog)
 
@@ -46,7 +45,7 @@ async def main() -> None:
     setup_dialogs(dp)
 
     # 4. Запуск фонового воркера
-    scheduler.start_scheduler()
+    # scheduler.start_scheduler()
 
     # 5. Старт бота
     logging.info("🚀 Bot is starting...")

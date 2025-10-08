@@ -8,3 +8,7 @@ class MailingState(StatesGroup):
     hour = State()
     minute = State()
     channel = State()
+
+class AddChanel(StatesGroup):
+    channel_name = State()
+    channel_id = State()
