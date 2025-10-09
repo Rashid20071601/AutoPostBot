@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 import logging
 
 
+# scheduler = AsyncIOScheduler(timezone="UTC")
 scheduler = AsyncIOScheduler(timezone=ZoneInfo("Europe/Moscow"))
 logger = logging.getLogger(__name__)
 

@@ -1,32 +1,37 @@
-from sqlalchemy import Table, Column, Integer, BigInteger, String, MetaData, ForeignKey, REAL
+from sqlalchemy import BigInteger, ForeignKey, REAL
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase
+from typing import Annotated
 
-metadata_obj = MetaData()
+
+intpk = Annotated[int, mapped_column(primary_key=True, autoincrement=True)]
+
+class Base(DeclarativeBase):
+    pass
 
 
-users = Table(
-    "users",
-    metadata_obj,
-    Column("id", BigInteger, primary_key=True),
-    Column("name", String, nullable=True)
-)
+class UsersORM(Base):
+    __tablename__ = "users"
 
-channels = Table(
-    "channels",
-    metadata_obj,
-    Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("tg_id", BigInteger, unique=True, nullable=False),
-    Column("title", String, nullable=False),
-    Column("owner_id", BigInteger, ForeignKey("users.id")),
-)
+    id: Mapped[intpk]
+    first_name: Mapped[str] = mapped_column(nullable=True)
+    last_name: Mapped[str] = mapped_column(nullable=True)
 
-mailings = Table(
-    "mailings",
-    metadata_obj,
-    Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("text", String),
-    Column("hour", Integer),
-    Column("minute", Integer),
-    Column("channel_id", Integer),
-    Column("enabled", Integer, default=1),
-    Column("last_sent", REAL, default=0),
-)
+class ChannelsORM(Base):
+    __tablename__ = "channels"
+
+    id: Mapped[intpk]
+    tg_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(nullable=False)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+class MailingsORM(Base):
+    __tablename__ = "mailings"
+
+    id: Mapped[intpk]
+    text: Mapped[str]
+    hour: Mapped[int]
+    minute: Mapped[int]
+    channel_id: Mapped[int]
+    enabled: Mapped[bool] = mapped_column(server_default="True")
+    last_sent: Mapped[float] = mapped_column(REAL, server_default="0")
