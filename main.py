@@ -8,8 +8,8 @@ from aiogram.enums import ParseMode
 from config.config import Config, load_config
 from handlers import mailing_fsm
 from services.mailing_datetime import mailing_dialog
+from utils.scheduler import start_scheduler
 from utils import back
-from database.db import create_table
 
 
 
@@ -17,8 +17,7 @@ from database.db import create_table
 async def main() -> None:
     """
     Точка входа в приложение.
-    Выполняет настройку логирования, инициализацию базы,
-    регистрацию роутеров и запуск бота.
+    Выполняет настройку логирования, регистрацию роутеров и запуск бота.
     """
 
     config: Config = load_config()
@@ -33,21 +32,18 @@ async def main() -> None:
     dp = Dispatcher()
     dp.workflow_data.update({"bot": bot})
 
-    # 1. Инициализация базы
-    await create_table()
-
-    # 2. Подключение роутеров
+    # 1. ⚙️ Подключение роутеров
     dp.include_router(mailing_fsm.router)
     dp.include_router(back.router)
     dp.include_router(mailing_dialog)
 
-    # 3. Регистрация диалога
+    # 2. 🔗 Регистрация диалога
     setup_dialogs(dp)
 
-    # 4. Запуск фонового воркера
-    # scheduler.start_scheduler()
+    # 3. 🕒 Запуск планировщика
+    start_scheduler()
 
-    # 5. Старт бота
+    # 4. ✔ Старт бота
     logging.info("🚀 Bot is starting...")
 
     try:

@@ -1,5 +1,2 @@
-from config.config import Config, load_config
-
-def db_url_asyncpg():
-    config: Config = load_config()
-    return f"postgresql+asyncpg://{config.db.user}:{config.db.password}@{config.db.host}:{config.db.port}/{config.db.name}"
+def get_db_url(conf) -> str:
+    return f"postgresql+asyncpg://{conf.db.user}:{conf.db.password}@{conf.db.host}:{conf.db.port}/{conf.db.name}"

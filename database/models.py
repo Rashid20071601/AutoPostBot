@@ -1,6 +1,5 @@
-from sqlalchemy import BigInteger, ForeignKey, REAL
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import BigInteger, ForeignKey, REAL, Index
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
 from typing import Annotated
 
 
@@ -10,28 +9,38 @@ class Base(DeclarativeBase):
     pass
 
 
-class UsersORM(Base):
+class UserORM(Base):
     __tablename__ = "users"
 
     id: Mapped[intpk]
     first_name: Mapped[str] = mapped_column(nullable=True)
     last_name: Mapped[str] = mapped_column(nullable=True)
+    channels = relationship("ChannelORM",
+                            back_populates="owner",
+                            cascade="all, delete-orphan")
 
-class ChannelsORM(Base):
+
+class ChannelORM(Base):
     __tablename__ = "channels"
 
     id: Mapped[intpk]
     tg_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     title: Mapped[str] = mapped_column(nullable=False)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    owner = relationship("UserORM", back_populates="channels")
 
-class MailingsORM(Base):
+
+class MailingORM(Base):
     __tablename__ = "mailings"
 
     id: Mapped[intpk]
-    text: Mapped[str]
-    hour: Mapped[int]
-    minute: Mapped[int]
-    channel_id: Mapped[int]
-    enabled: Mapped[bool] = mapped_column(server_default="True")
-    last_sent: Mapped[float] = mapped_column(REAL, server_default="0")
+    text: Mapped[str] = mapped_column(nullable=False)
+    hour: Mapped[int] = mapped_column(nullable=False)
+    minute: Mapped[int] = mapped_column(nullable=False)
+    channel_name: Mapped[str] = mapped_column(nullable=False)
+    enabled: Mapped[bool] = mapped_column(server_default="true", nullable=False)
+    last_sent: Mapped[float] = mapped_column(REAL, server_default="0", nullable=False)
+
+    __table_args__ = (
+        Index("ix_mailing_schedule_enabled", "hour", "minute", "enabled"),
+    )
