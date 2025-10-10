@@ -4,7 +4,7 @@ from aiogram.fsm.state import State, StatesGroup
 # --------------- Настройка состояний --------------- #
 class MailingState(StatesGroup):
     text = State()
-    date = State()
+    scheduled_date = State()
     hour = State()
     minute = State()
     channel = State()

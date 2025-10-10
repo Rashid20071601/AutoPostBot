@@ -9,7 +9,7 @@ import logging
 
 from lexicon.lexicon import LEXICON_RU
 from keyboards import keyboard_utils
-from database.db import add_mailing
+from database.crud.mailings import add_mailing
 from states.states import MailingState, AddChanel
 
 
@@ -69,7 +69,11 @@ async def start_mailing_creation(callback: CallbackQuery, state: FSMContext):
 
 async def set_mailing_text(message: Message, state: FSMContext, dialog_manager: DialogManager):
     await state.update_data(text=message.text)
-    await dialog_manager.start(MailingState.date, mode=StartMode.RESET_STACK)
+    await dialog_manager.start(
+        MailingState.scheduled_date,
+        mode=StartMode.RESET_STACK,
+        data=await state.get_data()
+        )
 
 
 

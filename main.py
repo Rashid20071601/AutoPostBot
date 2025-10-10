@@ -41,7 +41,7 @@ async def main() -> None:
     setup_dialogs(dp)
 
     # 3. 🕒 Запуск планировщика
-    start_scheduler()
+    await start_scheduler(bot)
 
     # 4. ✔ Старт бота
     logging.info("🚀 Bot is starting...")

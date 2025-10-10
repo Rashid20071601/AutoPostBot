@@ -1,3 +1,4 @@
+from datetime import date
 from sqlalchemy import select, update, delete
 from typing import List, Optional
 
@@ -7,21 +8,27 @@ from database.models import UserORM, ChannelORM, MailingORM
 
 async def add_mailing(
         text: str,
+        scheduled_date: date,
         hour: int,
         minute: int,
-        channel_name: int
+        channel_id: int
         ) -> MailingORM:
     async with AsyncSessionLocal() as session:
-        m = MailingORM(
-            text=text,
-            hour=hour,
-            minute=minute,
-            channel_name=channel_name
-        )
-        session.add(m)
-        await session.commit()
-        await session.refresh(m)
-        return m
+        try:
+            m = MailingORM(
+                text=text,
+                scheduled_date=scheduled_date,
+                hour=hour,
+                minute=minute,
+                channel_id=channel_id
+            )
+            session.add(m)
+            await session.commit()
+            await session.refresh(m)
+            return m
+        except Exception:
+            session.rollback()
+            raise
 
 
 async def get_mailings() -> List[MailingORM]:
@@ -63,12 +70,3 @@ async def delete_mailing(mailing_id: int) -> bool:
 
             await session.delete(m)
         return True
-
-
-async def update_last_sent(mailing_id: int, timestamp: int) -> None:
-    async with AsyncSessionLocal() as session:
-        async with session.begin():
-            m = await session.get(MailingORM, mailing_id)
-
-            if m:
-                m.last_sent = timestamp

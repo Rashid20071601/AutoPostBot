@@ -7,6 +7,7 @@ import logging
 
 from lexicon.lexicon import LEXICON_RU
 from states.states import MailingState
+from database.crud.mailings import add_mailing
 
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ async def on_date_selected(
         dialog_manager: DialogManager,
         item_id: str
 ):
-    dialog_manager.dialog_data["date"] = item_id
+    dialog_manager.dialog_data["scheduled_date"] = item_id
     await dialog_manager.next()
 
 # Выбор часа
@@ -83,9 +84,9 @@ async def on_channel_selected(
         )
         return
 
-    except Exception:
+    except Exception as e:
         logger.exception(
-            "Unexpected error in set_mailing_channel",
+            f"Unexpected error: {e}",
             extra={
                 "user_id": callback.message.from_user.id,
                 "chanel_id": channel_id,
@@ -96,16 +97,20 @@ async def on_channel_selected(
         )
         return
 
-    # data = dialog_manager.dialog_data
-    # date, hour, minute = data.get("date"), data.get("hout"), data.get("minute")
+    data = dialog_manager.dialog_data
+    text = data.get("text") or dialog_manager.start_data.get("text")
+    scheduled_date, hour, minute = data.get("scheduled_date"), data.get("hour"), data.get("minute")
+    await add_mailing(text=text, scheduled_date=scheduled_date, hour=hour, minute=minute, channel_id=channel_id)
     await callback.message.answer(LEXICON_RU["mailing_created"])
+    await dialog_manager.done()
+    callback.message.edit_reply_markup()
 
 
 # ===================== Окна ===================== #
 date_window = Window(
     Const(LEXICON_RU["select_date"]),
     Calendar(id="cal", on_click=on_date_selected),
-    state=MailingState.date
+    state=MailingState.scheduled_date
 )
 
 hour_window = Window(

@@ -1,6 +1,7 @@
-from sqlalchemy import BigInteger, ForeignKey, REAL, Index
+from sqlalchemy import BigInteger, ForeignKey, Float, Index, Date
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
 from typing import Annotated
+from datetime import date
 
 
 intpk = Annotated[int, mapped_column(primary_key=True, autoincrement=True)]
@@ -35,12 +36,12 @@ class MailingORM(Base):
 
     id: Mapped[intpk]
     text: Mapped[str] = mapped_column(nullable=False)
+    scheduled_date: Mapped[date] = mapped_column(Date, nullable=False)
     hour: Mapped[int] = mapped_column(nullable=False)
     minute: Mapped[int] = mapped_column(nullable=False)
-    channel_name: Mapped[str] = mapped_column(nullable=False)
+    channel_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     enabled: Mapped[bool] = mapped_column(server_default="true", nullable=False)
-    last_sent: Mapped[float] = mapped_column(REAL, server_default="0", nullable=False)
 
     __table_args__ = (
-        Index("ix_mailing_schedule_enabled", "hour", "minute", "enabled"),
+        Index("ix_mailing_schedule_enabled", "scheduled_date", "hour", "minute", "enabled", "channel_id", unique=False),
     )
