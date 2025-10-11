@@ -12,6 +12,9 @@ class TgBotSettings:
 class LogSettings:
     level: str
     format: str
+    filename: str
+    filemode: str
+    encoding: str
 
     def get_level(self) -> int:
         if not isinstance(self.level, str):
@@ -38,7 +41,13 @@ def load_config(path: Optional[str] = None) -> Config:
     env.read_env(path)
     return Config(
         bot=TgBotSettings(token=env.str("BOT_TOKEN", default="")),
-        log=LogSettings(level=env("LOG_LEVEL"), format=env("LOG_FORMAT")),
+        log=LogSettings(
+            level=env("LOG_LEVEL"),
+            format=env("LOG_FORMAT"),
+            filename=env("LOG_FILENAME"),
+            filemode=env("LOG_FILEMODE"),
+            encoding=env("LOG_ENCODING"),
+            ),
         db=DBSettings(
             host=env.str("POSTGRES_HOST"),
             port=env.int("POSTGRES_PORT"),

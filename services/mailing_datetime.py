@@ -101,9 +101,9 @@ async def on_channel_selected(
     text = data.get("text") or dialog_manager.start_data.get("text")
     scheduled_date, hour, minute = data.get("scheduled_date"), data.get("hour"), data.get("minute")
     await add_mailing(text=text, scheduled_date=scheduled_date, hour=hour, minute=minute, channel_id=channel_id)
-    await callback.message.answer(LEXICON_RU["mailing_created"])
+    await callback.message.edit_text(LEXICON_RU["mailing_created"])
     await dialog_manager.done()
-    callback.message.edit_reply_markup()
+    # callback.message.edit_reply_markup()
 
 
 # ===================== Окна ===================== #

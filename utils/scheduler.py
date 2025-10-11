@@ -23,9 +23,10 @@ async def send_scheduled_mailings(mailing_id: int, text: str, channel_id: int, b
         logger.exception(f"Ошибка при отправки рассылки: {e}")
 
 
-async def start_scheduler(bot: Bot) -> None:
+async def sync_mailings(bot: Bot) -> None:
     try:
         mailings = await get_mailings()
+        loop = asyncio.get_running_loop()
         for m in mailings:
             mailing_id = m.id
             text = m.text
@@ -34,15 +35,29 @@ async def start_scheduler(bot: Bot) -> None:
             minute = m.minute
             channel_id = m.channel_id
             enabled = m.enabled
-            if enabled:
-                run_date = datetime.combine(scheduled_date, time(hour=hour, minute=minute))
+            run_date = datetime.combine(scheduled_date, time(hour=hour, minute=minute))
+            if enabled and run_date > datetime.now():
+                logger.info(f"📅 Планируем задачу {mailing_id} на {run_date} (сейчас {datetime.now(ZoneInfo('Europe/Moscow'))})")
                 scheduler.add_job(
-                    lambda id=mailing_id, t=text, ch=channel_id, b=bot: asyncio.create_task(send_scheduled_mailings(id, t, ch, b)),
+                    lambda id=mailing_id, t=text, ch=channel_id, b=bot: asyncio.run_coroutine_threadsafe(send_scheduled_mailings(id, t, ch, b), loop),
                     trigger="date",
                     run_date=run_date,
                     id=str(mailing_id),
                     replace_existing=True
                 )
+    except Exception as e:
+        logger.exception(f"Ошибка при планировке рассылки: {e}")
+
+
+async def start_scheduler(bot: Bot) -> None:
+    try:
+        scheduler.add_job(
+            sync_mailings,
+            trigger="interval",
+            minutes=1,
+            args=[bot],
+            id="sync_mailings"
+        )
         if not scheduler.running:
             scheduler.start()
             logger.info("Планировщик задача успешно запущен!")

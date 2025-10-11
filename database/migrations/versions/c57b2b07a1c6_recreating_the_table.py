@@ -1,8 +1,8 @@
-"""init tables
+"""recreating the table
 
-Revision ID: 8ce05b091b10
+Revision ID: c57b2b07a1c6
 Revises: 
-Create Date: 2025-10-09 19:57:11.002523
+Create Date: 2025-10-11 19:24:10.837761
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8ce05b091b10'
+revision: str = 'c57b2b07a1c6'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -23,28 +23,28 @@ def upgrade() -> None:
     op.create_table('mailings',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('text', sa.String(), nullable=False),
+    sa.Column('scheduled_date', sa.Date(), nullable=False),
     sa.Column('hour', sa.Integer(), nullable=False),
     sa.Column('minute', sa.Integer(), nullable=False),
-    sa.Column('channel_name', sa.String(), nullable=False),
+    sa.Column('channel_id', sa.BigInteger(), nullable=False),
     sa.Column('enabled', sa.Boolean(), server_default='true', nullable=False),
-    sa.Column('last_sent', sa.REAL(), server_default='0', nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_mailing_schedule_enabled', 'mailings', ['hour', 'minute', 'enabled'], unique=False)
+    op.create_index('ix_mailing_schedule_enabled', 'mailings', ['scheduled_date', 'hour', 'minute', 'enabled', 'channel_id'], unique=False)
     op.create_table('users',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('first_name', sa.String(), nullable=True),
     sa.Column('last_name', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('channels',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('tg_id', sa.BigInteger(), nullable=False),
-    sa.Column('title', sa.String(), nullable=False),
-    sa.Column('owner_id', sa.Integer(), nullable=False),
+    sa.Column('channel_id', sa.BigInteger(), nullable=False),
+    sa.Column('channel_name', sa.String(), nullable=False),
+    sa.Column('owner_id', sa.BigInteger(), nullable=False),
     sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('tg_id')
+    sa.UniqueConstraint('channel_id')
     )
     # ### end Alembic commands ###
 

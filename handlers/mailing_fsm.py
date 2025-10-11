@@ -9,8 +9,8 @@ import logging
 
 from lexicon.lexicon import LEXICON_RU
 from keyboards import keyboard_utils
-from database.crud.mailings import add_mailing
-from states.states import MailingState, AddChanel
+from database.crud.channels import create_channel
+from states.states import MailingState, ChannelState
 
 
 # ========================= Инициализация логирования и роутера ========================= #
@@ -41,18 +41,44 @@ async def help_callback(call: CallbackQuery) -> None:
 
 
 # ========================= Хендлер добавления канала ========================= #
-async def add_channel_name(call: CallbackQuery, state: FSMContext) -> None:
+async def prompt_channel_name(call: CallbackQuery, state: FSMContext) -> None:
     await call.message.edit_text(
         LEXICON_RU["add_channel_name"]
     )
-    await state.set_state(AddChanel.channel_name)
+    await state.set_state(ChannelState.channel_name)
+    await call.answer()
 
 
-async def add_channel_id(message: Message, state: FSMContext) -> None:
+async def receive_channel_name(message: Message, state: FSMContext) -> None:
     await state.update_data(channel_name=message.text)
+    logger.debug(f"Сохранено имя канала: {message.text} для {message.from_user.id}")
     await message.answer(
         LEXICON_RU["add_channel_id"]
     )
+    await state.set_state(ChannelState.channel_id)
+
+async def receive_channel_id_and_create(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    channel_name = data.get("channel_name")
+    try:
+        channel_id = int(message.text)
+    except ValueError:
+        logger.warning(f"Неверный формат id от user={message.from_user.id}: {message.text}")
+        await message.answer(LEXICON_RU["channel_id_error"])
+        return
+
+    user_id = message.from_user.id
+    logger.debug(f"Создаем канал {channel_name} ({channel_id}) для user={user_id}")
+
+    try:
+        await create_channel(channel_id=channel_id, channel_name=channel_name, user_id=user_id)
+    except Exception:
+        logger.exception(f"Ошибка при создании канала channel_id={channel_id} user={user_id}")
+        await message.answer(LEXICON_RU["unexpected_error"])
+        await state.clear()
+        return
+
+    await message.answer(LEXICON_RU["channel_added"])
 
 
 
@@ -83,15 +109,13 @@ router.message.register(welcome_handler, Command(commands="start"), StateFilter(
 
 # /help
 router.message.register(help_message, Command(commands="help"), StateFilter(default_state))
-
-# Запрос помощи
 router.callback_query.register(help_callback, F.data == "help", StateFilter(default_state))
 
 # Добавление канала
+router.callback_query.register(prompt_channel_name, F.data == "add_channel")
+router.message.register(receive_channel_name, StateFilter(ChannelState.channel_name))
+router.message.register(receive_channel_id_and_create, StateFilter(ChannelState.channel_id))
 
-
-# Запрос текста поста
+# Создание рассылки/поста
 router.callback_query.register(start_mailing_creation, F.data == "create_post", StateFilter(default_state))
-
-# Запрос часов
 router.message.register(set_mailing_text, StateFilter(MailingState.text))

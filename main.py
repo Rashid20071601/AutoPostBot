@@ -25,6 +25,9 @@ async def main() -> None:
     logging.basicConfig(
         level=logging.getLevelName(level=config.log.level),
         format=config.log.format,
+        filename=config.log.filename,
+        filemode=config.log.filemode,
+        encoding=config.log.encoding,
         style='{'
     )
 

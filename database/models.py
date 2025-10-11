@@ -13,7 +13,7 @@ class Base(DeclarativeBase):
 class UserORM(Base):
     __tablename__ = "users"
 
-    id: Mapped[intpk]
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     first_name: Mapped[str] = mapped_column(nullable=True)
     last_name: Mapped[str] = mapped_column(nullable=True)
     channels = relationship("ChannelORM",
@@ -25,10 +25,10 @@ class ChannelORM(Base):
     __tablename__ = "channels"
 
     id: Mapped[intpk]
-    tg_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
-    title: Mapped[str] = mapped_column(nullable=False)
-    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    owner = relationship("UserORM", back_populates="channels")
+    channel_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    channel_name: Mapped[str] = mapped_column(nullable=False)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    owner: Mapped[UserORM] = relationship("UserORM", back_populates="channels")
 
 
 class MailingORM(Base):

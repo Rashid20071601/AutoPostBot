@@ -3,7 +3,7 @@ from sqlalchemy import select, update, delete
 from typing import List, Optional
 
 from database.base import AsyncSessionLocal
-from database.models import UserORM, ChannelORM, MailingORM
+from database.models import MailingORM
 
 
 async def add_mailing(
@@ -12,9 +12,9 @@ async def add_mailing(
         hour: int,
         minute: int,
         channel_id: int
-        ) -> MailingORM:
+        ) -> None:
     async with AsyncSessionLocal() as session:
-        try:
+        async with session.begin():
             m = MailingORM(
                 text=text,
                 scheduled_date=scheduled_date,
@@ -24,11 +24,6 @@ async def add_mailing(
             )
             session.add(m)
             await session.commit()
-            await session.refresh(m)
-            return m
-        except Exception:
-            session.rollback()
-            raise
 
 
 async def get_mailings() -> List[MailingORM]:
