@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 logger.debug("Загрузка клавиатур...")
 
-def main_kb():
+def main_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📝 Создать рассылку", callback_data="create_post")],
@@ -17,7 +17,7 @@ def main_kb():
         ]
     )
 
-def mailing_manage_kb(mailing_id, enabled):
+def mailing_manage_kb(mailing_id, enabled) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -37,7 +37,7 @@ def mailing_manage_kb(mailing_id, enabled):
         ]
     )
 
-def back_to_menu_kb():
+def back_to_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🔙 Вернуться", callback_data="back_to_menu")]

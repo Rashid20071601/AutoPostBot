@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 
 from config.config import Config, load_config
 from handlers import mailing_fsm
-from services.mailing_datetime import mailing_dialog
+from handlers.mailing_datetime import mailing_dialog
 from utils.scheduler import start_scheduler
 from utils import back
 

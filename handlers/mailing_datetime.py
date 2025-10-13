@@ -8,6 +8,7 @@ import logging
 from lexicon.lexicon import LEXICON_RU
 from states.states import MailingState
 from database.crud.mailings import add_mailing
+from keyboards.callback_data_facroty import get_user_channels, ChannelsCallbackFactory
 
 
 logger = logging.getLogger(__name__)
@@ -45,13 +46,18 @@ async def on_minute_selected(
     await dialog_manager.next()
 
 # Выбор канала
-async def get_channels(dialog_manager: DialogManager, **kwargs):
-    return {
-        "channels": [
-            {"id": "-1001234567890", "title": "Не рабочий канал"},
-            {"id": "-1003094411124", "title": "Рабочий канал"},
-        ]
-    }
+async def get_channels(dialog_manager: DialogManager, event_from_user, **kwargs) -> dict:
+    user_id = event_from_user.id
+    channels = await get_user_channels(user_id=user_id)
+
+    items = [
+        {"id": ChannelsCallbackFactory(channel_id=ch["id"]).pack(), "title": ch["title"]}
+        for ch in channels
+    ]
+
+    result = {"channels": items}
+    logger.info(f"Получили список каналов пользователя: {items=}, result={result=}")
+    return result
 
 async def on_channel_selected(
         callback: CallbackQuery,
@@ -59,7 +65,8 @@ async def on_channel_selected(
         dialog_manager: DialogManager,
         item_id: str
 ):
-    channel_id = int(item_id)
+    data = ChannelsCallbackFactory.unpack(item_id)
+    channel_id = data.channel_id
     dialog_manager.dialog_data["channel"] = channel_id
 
     try:
@@ -103,7 +110,6 @@ async def on_channel_selected(
     await add_mailing(text=text, scheduled_date=scheduled_date, hour=hour, minute=minute, channel_id=channel_id)
     await callback.message.edit_text(LEXICON_RU["mailing_created"])
     await dialog_manager.done()
-    # callback.message.edit_reply_markup()
 
 
 # ===================== Окна ===================== #

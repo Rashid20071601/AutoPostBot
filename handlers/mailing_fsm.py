@@ -10,6 +10,7 @@ import logging
 from lexicon.lexicon import LEXICON_RU
 from keyboards import keyboard_utils
 from database.crud.channels import create_channel
+from database.crud.users import create_user, user_exists
 from states.states import MailingState, ChannelState
 
 
@@ -20,6 +21,18 @@ router = Router()
 
 # ========================= Хендлеры приветствия и помощи ========================= #
 async def welcome_handler(message: Message) -> None:
+    try:
+        user_id = int(message.from_user.id)
+        if not await user_exists(user_id=user_id):
+            first_name = message.from_user.first_name
+            last_name = message.from_user.last_name
+            await create_user(
+                user_id=user_id,
+                first_name=first_name,
+                last_name=last_name)
+    except Exception as e:
+        await message.answer(LEXICON_RU["unexpected_error"])
+        logger.exception(f"Не удалось добавить пользователя user_id={user_id} в базу данных: {e}")
     await message.answer(
         text=LEXICON_RU['welcome'],
         reply_markup=keyboard_utils.main_kb(),
