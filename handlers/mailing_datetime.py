@@ -8,7 +8,7 @@ import logging
 from lexicon.lexicon import LEXICON_RU
 from states.states import MailingState
 from database.crud.mailings import add_mailing
-from keyboards.callback_data_facroty import get_user_channels, ChannelsCallbackFactory
+from keyboards.callback_data_factory import get_user_channels, ChannelsCallbackFactory
 
 
 logger = logging.getLogger(__name__)
