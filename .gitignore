@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual environments / env files
+.env
+.venv/
+venv/
+env/
+
+# VSCode (игнорировать рабочие настройки IDE)
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Misc caches / tools
+.mypy_cache/
+.pyre/
+.pytype/
+__pypackages__/
+
+
+# Database
+*.db
