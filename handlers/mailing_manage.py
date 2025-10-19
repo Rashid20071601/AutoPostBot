@@ -15,7 +15,7 @@ router = Router()
 # ========================================== Управление рассылкой ========================================================= #
 async def manage_mailings_callback(call: CallbackQuery) -> None:
     mailings = await get_mailings()
-    
+
     if not mailings:
         await call.message.answer("Нет активных рассылок.", reply_markup=back_to_menu_kb())
         await call.answer()

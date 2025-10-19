@@ -22,6 +22,7 @@ def mailing_manage_kb(mailing_id, enabled) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="✏️ Изменить текст", callback_data=f"edit_text:{mailing_id}")
+
             ],
             [
                 InlineKeyboardButton(text="✅ Вкл" if not enabled else "🚫 Выкл", callback_data=f"toggle:{mailing_id}"),
