@@ -1,3 +1,4 @@
+# ========================= Импорт библиотек ========================= #
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
@@ -12,16 +13,17 @@ from utils.scheduler import start_scheduler
 from utils import back
 
 
-
-# Функция конфигурирования и запуска бота
+# ========================= Основная точка входа ========================= #
 async def main() -> None:
     """
     Точка входа в приложение.
-    Выполняет настройку логирования, регистрацию роутеров и запуск бота.
+    Настраивает логирование, создаёт бота и диспетчер, подключает роутеры и запускает polling.
     """
 
+    # ========================= 1. Загрузка конфигурации ========================= #
     config: Config = load_config()
 
+    # ========================= 2. Настройка логирования ========================= #
     logging.basicConfig(
         level=logging.getLevelName(level=config.log.level),
         format=config.log.format,
@@ -31,32 +33,54 @@ async def main() -> None:
         style='{'
     )
 
-    bot = Bot(token=config.bot.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher()
-    dp.workflow_data.update({"bot": bot})
+    logger = logging.getLogger(__name__)
+    logger.info("🧩 Конфигурация и логирование инициализированы")
 
-    # 1. ⚙️ Подключение роутеров
+    # ========================= 3. Инициализация бота ========================= #
+    bot = Bot(
+        token=config.bot.token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)  # глобально задаём HTML-разметку
+    )
+    dp = Dispatcher()
+
+    # можно хранить общие зависимости в workflow_data
+    dp.workflow_data.update({"bot": bot})
+    logger.info("🤖 Бот успешно инициализирован")
+
+    # ========================= 4. Подключение роутеров ========================= #
     dp.include_router(mailing_fsm.router)
     dp.include_router(mailing_manage.router)
     dp.include_router(back.router)
     dp.include_router(mailing_dialog)
 
-    # 2. 🔗 Регистрация диалога
+    # ========================= 5. Регистрация диалогов ========================= #
     setup_dialogs(dp)
+    logger.info("🧭 Диалоги и роутеры подключены")
 
-    # 3. 🕒 Запуск планировщика
+    # ========================= 6. Запуск планировщика ========================= #
     await start_scheduler(bot)
+    logger.info("⏰ Планировщик успешно запущен")
 
-    # 4. ✔ Старт бота
-    logging.info("🚀 Bot is starting...")
+    # ========================= 7. Запуск polling ========================= #
+    logger.info("🚀 Бот запускается...")
 
     try:
+        # Удаляем webhook, чтобы бот перешёл в polling-режим
         await bot.delete_webhook(drop_pending_updates=True)
         await dp.start_polling(bot)
+    except (KeyboardInterrupt, SystemExit):
+        logger.warning("🛑 Остановка бота по сигналу пользователя")
+    except Exception as e:
+        logger.exception(f"❌ Критическая ошибка в работе бота: {e}")
     finally:
-        logging.info("🛑 Bot is stopping...")
+        logger.info("🧹 Завершение работы, закрываем соединения...")
         await bot.close()
+        logger.info("✅ Бот остановлен корректно.")
 
 
+# ========================= Запуск через asyncio.run ========================= #
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("🛑 Завершено вручную.")

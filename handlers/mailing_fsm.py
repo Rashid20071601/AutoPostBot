@@ -1,5 +1,5 @@
 # ========================= Импорт библиотек ========================= #
-from aiogram import Bot, Router, F
+from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -21,18 +21,28 @@ router = Router()
 
 # ========================= Хендлеры приветствия и помощи ========================= #
 async def welcome_handler(message: Message) -> None:
+    """
+    /start — приветствие пользователя.
+    При первом запуске — добавление в базу данных.
+    """
+    user_id = int(message.from_user.id)
     try:
-        user_id = int(message.from_user.id)
         if not await user_exists(user_id=user_id):
             first_name = message.from_user.first_name
             last_name = message.from_user.last_name
             await create_user(
                 user_id=user_id,
                 first_name=first_name,
-                last_name=last_name)
+                last_name=last_name
+            )
+            logger.info(f"Создан новый пользователь: id={user_id}, "
+                        f"name={first_name or ''} {last_name or ''}".strip())
     except Exception as e:
+        logger.exception(f"Ошибка при регистрации пользователя user_id={user_id}: {e}")
         await message.answer(LEXICON_RU["unexpected_error"])
-        logger.exception(f"Не удалось добавить пользователя user_id={user_id} в базу данных: {e}")
+        return
+
+    logger.debug(f"Пользователь {user_id} вызвал /start")
     await message.answer(
         text=LEXICON_RU['welcome'],
         reply_markup=keyboard_utils.main_kb(),
@@ -40,80 +50,97 @@ async def welcome_handler(message: Message) -> None:
 
 
 async def send_help(target) -> None:
-    await target.answer(
-        text=LEXICON_RU['help'],
-        parse_mode="Markdown"
-    )
+    """
+    Отправка справочного сообщения пользователю.
+    (parse_mode='HTML' установлен глобально)
+    """
+    await target.answer(text=LEXICON_RU['help'])
+
 
 async def help_message(message: Message) -> None:
+    """Обработка команды /help в чате."""
+    logger.debug(f"Пользователь {message.from_user.id} вызвал /help")
     await send_help(message)
 
+
 async def help_callback(call: CallbackQuery) -> None:
+    """Обработка нажатия на кнопку 'Помощь'."""
+    logger.debug(f"Пользователь {call.from_user.id} нажал кнопку помощи")
     await send_help(call.message)
     await call.answer()
 
 
-# ========================= Хендлер добавления канала ========================= #
+# ========================= Добавление канала ========================= #
 async def prompt_channel_name(call: CallbackQuery, state: FSMContext) -> None:
-    await call.message.edit_text(
-        LEXICON_RU["add_channel_name"]
-    )
+    """Просим пользователя ввести имя канала."""
+    logger.debug(f"Пользователь {call.from_user.id} добавляет новый канал")
+    await call.message.edit_text(LEXICON_RU["add_channel_name"])
     await state.set_state(ChannelState.channel_name)
     await call.answer()
 
 
 async def receive_channel_name(message: Message, state: FSMContext) -> None:
+    """Сохраняем имя канала и переходим к запросу ID."""
     await state.update_data(channel_name=message.text)
-    logger.debug(f"Сохранено имя канала: {message.text} для {message.from_user.id}")
-    await message.answer(
-        LEXICON_RU["add_channel_id"]
-    )
+    logger.debug(f"Сохранено имя канала от {message.from_user.id}: {message.text}")
+    await message.answer(LEXICON_RU["add_channel_id"])
     await state.set_state(ChannelState.channel_id)
 
+
 async def receive_channel_id_and_create(message: Message, state: FSMContext) -> None:
+    """Получаем ID канала, создаём запись в БД."""
     data = await state.get_data()
     channel_name = data.get("channel_name")
+    user_id = message.from_user.id
+
     try:
         channel_id = int(message.text)
     except ValueError:
-        logger.warning(f"Неверный формат id от user={message.from_user.id}: {message.text}")
+        logger.warning(f"Некорректный ID канала от user={user_id}: {message.text}")
         await message.answer(LEXICON_RU["channel_id_error"])
         return
 
-    user_id = message.from_user.id
-    logger.debug(f"Создаем канал {channel_name} ({channel_id}) для user={user_id}")
-
+    logger.info(f"Создание канала '{channel_name}' ({channel_id}) для user={user_id}")
     try:
         await create_channel(channel_id=channel_id, channel_name=channel_name, user_id=user_id)
     except Exception:
-        logger.exception(f"Ошибка при создании канала channel_id={channel_id} user={user_id}")
+        logger.exception(f"Ошибка при создании канала channel_id={channel_id}, user={user_id}")
         await message.answer(LEXICON_RU["unexpected_error"])
         await state.clear()
         return
 
     await message.answer(LEXICON_RU["channel_added"])
+    logger.debug(f"Канал '{channel_name}' ({channel_id}) успешно добавлен пользователем {user_id}")
+    await state.clear()
 
 
-
-# ========================= Хендлеры создания поста ========================= #
+# ========================= Создание рассылки ========================= #
 async def start_mailing_creation(callback: CallbackQuery, state: FSMContext):
+    """Начало создания рассылки: запрос текста."""
+    user_id = callback.from_user.id
+    logger.debug(f"Пользователь {user_id} начал создание рассылки")
     await callback.message.edit_text(
         text=LEXICON_RU['get_mailing'],
         reply_markup=keyboard_utils.back_to_menu_kb(),
     )
-
     await state.set_state(MailingState.text)
     await callback.answer()
 
 
 async def set_mailing_text(message: Message, state: FSMContext, dialog_manager: DialogManager):
-    await state.update_data(text=message.text)
+    """Получение текста рассылки и запуск диалога выбора даты."""
+    user_id = message.from_user.id
+    text = message.text
+    logger.debug(f"Получен текст рассылки от user={user_id}: {text[:50]}...")
+
+    await state.update_data(text=text)
+
+    logger.debug(f"Переход в диалог выбора даты рассылки для user={user_id}")
     await dialog_manager.start(
         MailingState.scheduled_date,
         mode=StartMode.RESET_STACK,
-        data=await state.get_data()
-        )
-
+        data=await state.get_data(),
+    )
 
 
 # ========================= Регистрация хэндлеров ========================= #
