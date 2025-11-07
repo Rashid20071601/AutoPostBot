@@ -100,6 +100,7 @@ async def on_channel_selected(callback: CallbackQuery, widget: Select, dialog_ma
     # Получаем данные рассылки из контекста
     data = dialog_manager.dialog_data
     text = data.get("text") or dialog_manager.start_data.get("text")
+    image_file_id = data.get("image_file_id") or dialog_manager.start_data.get("image_file_id")
     scheduled_date = data.get("scheduled_date")
     hour = data.get("hour")
     minute = data.get("minute")
@@ -113,6 +114,7 @@ async def on_channel_selected(callback: CallbackQuery, widget: Select, dialog_ma
     try:
         await add_mailing(
             text=text,
+            image_file_id=image_file_id,
             scheduled_date=scheduled_date,
             hour=hour,
             minute=minute,

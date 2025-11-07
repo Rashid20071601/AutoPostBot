@@ -15,13 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 # ========================= Отправка рассылки ========================= #
-async def send_scheduled_mailings(mailing_id: int, text: str, channel_id: int, bot: Bot) -> None:
+async def send_scheduled_mailings(mailing_id: int, text: str, image_file_id: str | None, channel_id: int, bot: Bot) -> None:
     """
     Отправляет запланированную рассылку в указанный канал.
     После успешной отправки — отключает рассылку (enabled=False).
     """
     try:
-        await bot.send_message(channel_id, text)
+        if not image_file_id:
+            await bot.send_message(channel_id, text)
+        elif image_file_id:
+            await bot.send_photo(channel_id, photo=image_file_id, caption=text)
         await update_mailing(mailing_id=mailing_id, enabled=False)
         logger.info(
             f"✅ Рассылка {mailing_id} отправлена в канал {channel_id}. "
@@ -49,6 +52,7 @@ async def sync_mailings(bot: Bot) -> None:
         for m in mailings:
             mailing_id = m.id
             text = m.text
+            image_file_id = m.image_file_id
             scheduled_date = m.scheduled_date
             hour = m.hour
             minute = m.minute
@@ -72,8 +76,8 @@ async def sync_mailings(bot: Bot) -> None:
 
                 # Добавляем задачу с безопасной оберткой
                 scheduler.add_job(
-                    lambda id=mailing_id, t=text, ch=channel_id, b=bot: asyncio.run_coroutine_threadsafe(
-                        send_scheduled_mailings(id, t, ch, b), loop
+                    lambda id=mailing_id, t=text, img=image_file_id, ch=channel_id, b=bot: asyncio.run_coroutine_threadsafe(
+                        send_scheduled_mailings(id, t, img, ch, b), loop
                     ),
                     trigger="date",
                     run_date=run_date,

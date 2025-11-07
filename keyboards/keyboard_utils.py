@@ -13,24 +13,46 @@ def main_kb() -> InlineKeyboardMarkup:
     Возвращает клавиатуру главного меню.
     Содержит действия: создание рассылки, управление, добавление канала и помощь.
     """
-    try:
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="📝 Создать рассылку", callback_data="create_post")],
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📝 Создать рассылку", callback_data="create_post")],
                 [InlineKeyboardButton(text="📋 Управление рассылками", callback_data="manage_mailings")],
-                [InlineKeyboardButton(text="📢 Добавить канал", callback_data="add_channel")],
-                [InlineKeyboardButton(text="🆘 Помощь", callback_data="help")],
-            ]
-        )
-        logger.debug("Главное меню создано успешно.")
-        return keyboard
+            [InlineKeyboardButton(text="📢 Добавить канал", callback_data="add_channel")],
+            [InlineKeyboardButton(text="🆘 Помощь", callback_data="help")],
+        ]
+    )
+    logger.debug("Главное меню создано успешно.")
+    return keyboard
 
-    except Exception as e:
-        logger.exception(f"❌ Ошибка при создании клавиатуры main_kb: {e}")
-        # возвращаем fallback, чтобы бот не упал
-        return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
-        ])
+
+# ========================= Управление изображением ========================= #
+def add_image_kb() -> InlineKeyboardMarkup:
+    """
+    Клавиатура для выбора: добавить изображение или пропустить этот шаг.
+    """
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🖼️ Добавить изображение", callback_data="image_add")],
+            [InlineKeyboardButton(text="➡ Пропустить", callback_data="image_skip")],
+        ]
+    )
+    logger.debug("[Keyboard] add_image_kb создана успешно")
+    return keyboard
+
+def image_manage_kb() -> InlineKeyboardMarkup:
+    """
+    Клавиатура управления уже добавленным изображением:
+    заменить, удалить или продолжить без изменений.
+    """
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="♻ Заменить", callback_data="image_change")],
+            [InlineKeyboardButton(text="❌ Удалить", callback_data="image_delete")],
+            [InlineKeyboardButton(text="➡ Продолжить", callback_data="image_continue")],
+        ]
+    )
+    logger.debug("[Keyboard] image_manage_kb создана успешно")
+    return keyboard
 
 
 # ========================= Управление рассылками ========================= #
@@ -39,24 +61,19 @@ def mailing_manage_kb(mailing_id: int, enabled: bool) -> InlineKeyboardMarkup:
     Возвращает клавиатуру управления конкретной рассылкой.
     Включает кнопки изменения, включения/отключения и удаления.
     """
-    try:
-        status_btn_text = "✅ Вкл" if not enabled else "🚫 Выкл"
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="✏️ Изменить текст", callback_data=f"edit_text:{mailing_id}")],
-                [
-                    InlineKeyboardButton(text=status_btn_text, callback_data=f"toggle:{mailing_id}"),
-                    InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete:{mailing_id}")
-                ],
-                [InlineKeyboardButton(text="🔙 Вернуться", callback_data="back_to_menu")]
-            ]
-        )
-        logger.debug(f"Клавиатура управления рассылкой {mailing_id} создана (enabled={enabled})")
-        return keyboard
-
-    except Exception as e:
-        logger.exception(f"❌ Ошибка при создании mailing_manage_kb для {mailing_id}: {e}")
-        return back_to_menu_kb()
+    status_btn_text = "✅ Вкл" if not enabled else "🚫 Выкл"
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✏️ Изменить текст", callback_data=f"edit_text:{mailing_id}")],
+            [
+                InlineKeyboardButton(text=status_btn_text, callback_data=f"toggle:{mailing_id}"),
+                InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete:{mailing_id}")
+            ],
+            [InlineKeyboardButton(text="🔙 Вернуться", callback_data="back_to_menu")]
+        ]
+    )
+    logger.debug(f"Клавиатура управления рассылкой {mailing_id} создана (enabled={enabled})")
+    return keyboard
 
 
 # ========================= Кнопка "Назад в меню" ========================= #

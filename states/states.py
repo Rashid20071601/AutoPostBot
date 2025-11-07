@@ -9,6 +9,7 @@ class MailingState(StatesGroup):
     Используется в handlers/mailing_fsm.py и mailing_datetime.py
     """
     text = State()              # Ввод текста рассылки
+    image_file_id = State()     # Добавление изображения
     scheduled_date = State()    # Выбор даты
     hour = State()              # Выбор часа
     minute = State()            # Выбор минут

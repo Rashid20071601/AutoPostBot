@@ -67,6 +67,7 @@ class MailingORM(Base):
 
     id: Mapped[intpk]
     text: Mapped[str] = mapped_column(nullable=False)
+    image_file_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
     scheduled_date: Mapped[date] = mapped_column(Date, nullable=False)
     hour: Mapped[int] = mapped_column(nullable=False)
     minute: Mapped[int] = mapped_column(nullable=False)

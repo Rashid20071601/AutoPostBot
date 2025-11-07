@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # ========================= Добавление рассылки ========================= #
 async def add_mailing(
     text: str,
+    image_file_id: str | None,
     scheduled_date: date,
     hour: int,
     minute: int,
@@ -28,6 +29,7 @@ async def add_mailing(
             async with session.begin():
                 mailing = MailingORM(
                     text=text,
+                    image_file_id=image_file_id,
                     scheduled_date=scheduled_date,
                     hour=hour,
                     minute=minute,
