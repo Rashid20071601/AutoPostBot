@@ -1,32 +1,23 @@
 # ========================= Импорт библиотек ========================= #
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-import logging
-
-from database.connection import get_db_url
-from config.config import load_config
+from typing import Any
 
 
-# ========================= Настройка конфигурации ========================= #
-config = load_config()
-logger = logging.getLogger(__name__)
+# ========================= Формирование строки подключения ========================= #
+def get_db_url(conf: Any) -> str:
+    """
+    Формирует строку подключения к PostgreSQL с asyncpg-драйвером.
+    Использует значения из конфигурации (объект Config).
+    """
+    user = conf.db.user
+    password = conf.db.password
+    host = conf.db.host
+    port = conf.db.port
+    db_name = conf.db.name
 
+    # ⚠️ Оборачиваем пароль в URL-кодирование на случай специальных символов
+    from urllib.parse import quote_plus
+    password_safe = quote_plus(password)
 
-# ========================= Создание движка ========================= #
-engine = create_async_engine(
-    url=get_db_url(config),
-    echo=config.log.level == "DEBUG",  # Включаем SQL-echo только при DEBUG
-    pool_pre_ping=True,                # Проверка соединений перед использованием
-    pool_size=10,                      # Размер пула подключений
-    max_overflow=20,                   # Резервные подключения
-    future=True
-)
-
-logger.info(f"📦 Подключение к БД установлено ({config.db.name}@{config.db.host}:{config.db.port})")
-
-
-# ========================= Фабрика сессий ========================= #
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    expire_on_commit=False,
-    class_=AsyncSession
-)
+    # Пример: postgresql+asyncpg://user:pass@localhost:5432/db_name
+    url = f"postgresql+asyncpg://{user}:{password_safe}@{host}:{port}/{db_name}"
+    return url

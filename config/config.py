@@ -1,18 +1,19 @@
 # ========================= Импорт библиотек ========================= #
 from dataclasses import dataclass
-from typing import Optional
 from environs import Env
+from typing import Optional
 import logging
+import os
 
 
 # ========================= Настройки Telegram Bot ========================= #
-@dataclass(slots=True)
+@dataclass
 class TgBotSettings:
     token: str
 
 
 # ========================= Настройки логирования ========================= #
-@dataclass(slots=True)
+@dataclass
 class LogSettings:
     level: str
     format: str
@@ -20,28 +21,15 @@ class LogSettings:
     filemode: str
     encoding: str
 
-    def as_dict(self) -> dict:
-        """Возвращает словарь для передачи в logging.basicConfig."""
-        return {
-            "level": self.get_level(),
-            "format": self.format,
-            "filename": self.filename,
-            "filemode": self.filemode,
-            "encoding": self.encoding,
-            "style": "{",
-        }
-
     def get_level(self) -> int:
-        """Возвращает числовой уровень логирования."""
-        try:
-            return getattr(logging, self.level.upper())
-        except AttributeError:
-            logging.warning(f"⚠️ Некорректный уровень логирования '{self.level}', используем INFO.")
+        """Возвращает уровень логирования как int для logging.basicConfig"""
+        if not isinstance(self.level, str):
             return logging.INFO
+        return getattr(logging, self.level.upper(), logging.INFO)
 
 
-# ========================= Настройки базы данных ========================= #
-@dataclass(slots=True)
+# ========================= Настройки БД ========================= #
+@dataclass
 class DBSettings:
     host: str
     port: int
@@ -49,36 +37,40 @@ class DBSettings:
     password: str
     name: str
 
-    def build_dsn(self, driver: str = "asyncpg") -> str:
-        """
-        Возвращает строку подключения в формате:
-        postgresql+asyncpg://user:pass@host:port/dbname
-        """
-        return f"postgresql+{driver}://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
-
 
 # ========================= Главный конфиг ========================= #
-@dataclass(slots=True)
+@dataclass
 class Config:
     bot: TgBotSettings
     log: LogSettings
     db: DBSettings
-    environment: str = "development"
 
 
 # ========================= Загрузка конфигурации ========================= #
 def load_config(path: Optional[str] = None) -> Config:
     """
     Загружает конфигурацию из .env файла.
-    Возвращает объект Config с секциями bot, log и db.
+    Автоматически выбирает .env.local или .env.production в зависимости от ENV.
     """
     env = Env()
-    env.read_env(path)
 
-    bot_token = env.str("BOT_TOKEN", "")
+    # 1️⃣ Определяем окружение (по умолчанию — local)
+    env_type = os.getenv("ENV", "local").lower()
+    env_file = path or f".env.{env_type}"
+
+    # 2️⃣ Проверяем наличие файла окружения
+    if not os.path.exists(env_file):
+        raise FileNotFoundError(f"❌ Не найден файл окружения: {env_file}")
+
+    # 3️⃣ Загружаем переменные окружения
+    env.read_env(env_file)
+
+    # 4️⃣ Проверяем обязательные параметры
+    bot_token = env.str("BOT_TOKEN", default="")
     if not bot_token:
-        raise ValueError("❌ BOT_TOKEN отсутствует в .env — бот не может быть запущен!")
+        raise ValueError("❌ Не найден BOT_TOKEN в .env файле — бот не может быть запущен!")
 
+    # 5️⃣ Создаём объект конфигурации
     config = Config(
         bot=TgBotSettings(token=bot_token),
         log=LogSettings(
@@ -95,8 +87,10 @@ def load_config(path: Optional[str] = None) -> Config:
             password=env.str("POSTGRES_PASSWORD", ""),
             name=env.str("POSTGRES_DB", "autopostbot"),
         ),
-        environment=env.str("ENV", "development"),
     )
 
-    logging.getLogger(__name__).info(f"🌍 Конфигурация успешно загружена ({config.environment})")
+    # 6️⃣ Логируем, какой файл загружен
+    logging.basicConfig(level=logging.INFO, format="[{asctime}] {levelname:<8} {message}", style="{")
+    logging.info(f"📦 Загрузка конфигурации: {env_file} (режим: {env_type.upper()})")
+
     return config
