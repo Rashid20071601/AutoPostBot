@@ -1,18 +1,18 @@
 # ========================= Импорт библиотек ========================= #
 from dataclasses import dataclass
-from environs import Env
 from typing import Optional
+from environs import Env
 import logging
 
 
 # ========================= Настройки Telegram Bot ========================= #
-@dataclass
+@dataclass(slots=True)
 class TgBotSettings:
     token: str
 
 
 # ========================= Настройки логирования ========================= #
-@dataclass
+@dataclass(slots=True)
 class LogSettings:
     level: str
     format: str
@@ -20,15 +20,28 @@ class LogSettings:
     filemode: str
     encoding: str
 
+    def as_dict(self) -> dict:
+        """Возвращает словарь для передачи в logging.basicConfig."""
+        return {
+            "level": self.get_level(),
+            "format": self.format,
+            "filename": self.filename,
+            "filemode": self.filemode,
+            "encoding": self.encoding,
+            "style": "{",
+        }
+
     def get_level(self) -> int:
-        """Возвращает уровень логирования как int для logging.basicConfig"""
-        if not isinstance(self.level, str):
+        """Возвращает числовой уровень логирования."""
+        try:
+            return getattr(logging, self.level.upper())
+        except AttributeError:
+            logging.warning(f"⚠️ Некорректный уровень логирования '{self.level}', используем INFO.")
             return logging.INFO
-        return getattr(logging, self.level.upper(), logging.INFO)
 
 
-# ========================= Настройки БД ========================= #
-@dataclass
+# ========================= Настройки базы данных ========================= #
+@dataclass(slots=True)
 class DBSettings:
     host: str
     port: int
@@ -36,13 +49,21 @@ class DBSettings:
     password: str
     name: str
 
+    def build_dsn(self, driver: str = "asyncpg") -> str:
+        """
+        Возвращает строку подключения в формате:
+        postgresql+asyncpg://user:pass@host:port/dbname
+        """
+        return f"postgresql+{driver}://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+
 
 # ========================= Главный конфиг ========================= #
-@dataclass
+@dataclass(slots=True)
 class Config:
     bot: TgBotSettings
     log: LogSettings
     db: DBSettings
+    environment: str = "development"
 
 
 # ========================= Загрузка конфигурации ========================= #
@@ -54,12 +75,11 @@ def load_config(path: Optional[str] = None) -> Config:
     env = Env()
     env.read_env(path)
 
-    # Безопасное чтение с дефолтами
-    bot_token = env.str("BOT_TOKEN", default="")
+    bot_token = env.str("BOT_TOKEN", "")
     if not bot_token:
-        raise ValueError("❌ Не найден BOT_TOKEN в .env файле — бот не может быть запущен!")
+        raise ValueError("❌ BOT_TOKEN отсутствует в .env — бот не может быть запущен!")
 
-    return Config(
+    config = Config(
         bot=TgBotSettings(token=bot_token),
         log=LogSettings(
             level=env.str("LOG_LEVEL", "INFO"),
@@ -75,4 +95,8 @@ def load_config(path: Optional[str] = None) -> Config:
             password=env.str("POSTGRES_PASSWORD", ""),
             name=env.str("POSTGRES_DB", "autopostbot"),
         ),
+        environment=env.str("ENV", "development"),
     )
+
+    logging.getLogger(__name__).info(f"🌍 Конфигурация успешно загружена ({config.environment})")
+    return config

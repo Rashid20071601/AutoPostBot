@@ -1,14 +1,18 @@
 # ========================= Импорт библиотек ========================= #
+import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-import logging
 
-from database.crud.mailings import get_mailings, update_mailing, get_mailing, delete_mailing
+from database.crud.mailings import (
+    get_mailings,
+    get_mailing,
+    update_mailing,
+    delete_mailing,
+)
 from keyboards.keyboard_utils import back_to_menu_kb, mailing_manage_kb
 from states.states import MailingManageState
-
 
 # ========================= Инициализация ========================= #
 logger = logging.getLogger(__name__)
@@ -18,39 +22,53 @@ router = Router()
 # ========================= Просмотр рассылок ========================= #
 async def manage_mailings_callback(call: CallbackQuery) -> None:
     """
-    Отображает список всех активных и завершённых рассылок пользователя.
+    Отображает список всех рассылок пользователя.
+    Если рассылок нет — сообщает об этом.
     """
+    user_id = call.from_user.id
     try:
         mailings = await get_mailings()
 
         if not mailings:
-            await call.message.edit_text("📭 Нет активных рассылок.", reply_markup=back_to_menu_kb())
-            await call.answer()
-            return
-
-        for m in mailings:
-            status = "✅ Включена" if m.enabled else "🚫 Отключена"
-            scheduled_date = m.scheduled_date.strftime("%Y-%m-%d")
-            hour = str(m.hour).zfill(2)
-            minute = str(m.minute).zfill(2)
-
             await call.message.edit_text(
-                text=(
-                    f"<b>ID:</b> <code>{m.id}</code>\n"
-                    f"<b>Текст:</b> <i>{m.text}</i>\n"
-                    f"<b>Время:</b> {hour}:{minute} • {scheduled_date}\n"
-                    f"<b>Канал:</b> <code>{m.channel_id}</code>\n"
-                    f"<b>Статус:</b> {status}"
-                ),
-                reply_markup=mailing_manage_kb(m.id, m.enabled),
+                "📭 У вас пока нет созданных рассылок.",
+                reply_markup=back_to_menu_kb()
+            )
+            logger.info(f"[Mailings] Пользователь {user_id} — нет рассылок.")
+            return await call.answer()
+
+        # Отображаем только первую рассылку (по UX — список должен быть в InlineList позже)
+        for mailing in mailings:
+            status = "✅ Активна" if mailing.enabled else "🚫 Отключена"
+            scheduled_date = mailing.scheduled_date.strftime("%Y-%m-%d")
+            time_str = f"{mailing.hour:02}:{mailing.minute:02}"
+
+            text_preview = mailing.text
+            if len(text_preview) > 200:
+                text_preview = text_preview[:200] + "..."
+
+            msg_text = (
+                f"<b>📨 ID:</b> <code>{mailing.id}</code>\n"
+                f"<b>🕒 Время:</b> {time_str} • {scheduled_date}\n"
+                f"<b>📢 Канал:</b> <code>{mailing.channel_id}</code>\n"
+                f"<b>📄 Текст:</b>\n<i>{text_preview}</i>\n\n"
+                f"<b>Статус:</b> {status}"
             )
 
-        logger.info(f"Пользователь {call.from_user.id} просмотрел список рассылок ({len(mailings)} шт.)")
+            await call.message.edit_text(
+                text=msg_text,
+                reply_markup=mailing_manage_kb(mailing.id, mailing.enabled)
+            )
+
+        logger.info(f"[Mailings] Пользователь {user_id} просмотрел {len(mailings)} рассылок.")
         await call.answer()
 
     except Exception as e:
-        logger.exception(f"❌ Ошибка при загрузке рассылок пользователя {call.from_user.id}: {e}")
-        await call.message.answer("⚠️ Не удалось загрузить список рассылок.", reply_markup=back_to_menu_kb())
+        logger.exception(f"Ошибка при отображении рассылок пользователя {user_id}: {e}")
+        await call.message.answer(
+            "⚠️ Не удалось загрузить рассылки. Попробуйте позже.",
+            reply_markup=back_to_menu_kb()
+        )
         await call.answer()
 
 
@@ -59,37 +77,40 @@ async def toggle_mailing(call: CallbackQuery) -> None:
     """
     Включает или выключает выбранную рассылку.
     """
+    user_id = call.from_user.id
     try:
         mailing_id = int(call.data.split(":")[1])
         mailing = await get_mailing(mailing_id)
 
         if not mailing:
-            await call.answer("Рассылка не найдена.")
+            await call.answer("🚫 Рассылка не найдена.")
             return
 
         new_status = not mailing.enabled
         await update_mailing(mailing_id, enabled=new_status)
 
+        status_text = "✅ Активна" if new_status else "🚫 Отключена"
         scheduled_date = mailing.scheduled_date.strftime("%Y-%m-%d")
-        hour = str(mailing.hour).zfill(2)
-        minute = str(mailing.minute).zfill(2)
+        time_str = f"{mailing.hour:02}:{mailing.minute:02}"
 
-        await call.message.edit_text(
-            text=(
-                f"<b>ID:</b> <code>{mailing.id}</code>\n"
-                f"<b>Текст:</b> <i>{mailing.text}</i>\n"
-                f"<b>Время:</b> {hour}:{minute} • {scheduled_date}\n"
-                f"<b>Канал:</b> <code>{mailing.channel_id}</code>\n"
-                f"<b>Статус:</b> {'✅ Включена' if new_status else '🚫 Отключена'}"
-            ),
-            reply_markup=mailing_manage_kb(mailing.id, new_status)
+        msg_text = (
+            f"<b>📨 ID:</b> <code>{mailing.id}</code>\n"
+            f"<b>🕒 Время:</b> {time_str} • {scheduled_date}\n"
+            f"<b>📢 Канал:</b> <code>{mailing.channel_id}</code>\n"
+            f"<b>📄 Текст:</b>\n<i>{mailing.text}</i>\n\n"
+            f"<b>Статус:</b> {status_text}"
         )
 
+        await call.message.edit_text(
+            msg_text,
+            reply_markup=mailing_manage_kb(mailing.id, new_status)
+        )
         await call.answer("Статус изменён ✅")
-        logger.info(f"Изменён статус рассылки {mailing_id}: {'ON' if new_status else 'OFF'}")
+
+        logger.info(f"[Mailing {mailing_id}] Пользователь {user_id} переключил статус → {status_text}")
 
     except Exception as e:
-        logger.exception(f"Ошибка при переключении рассылки: {e}")
+        logger.exception(f"Ошибка при переключении статуса рассылки: {e}")
         await call.answer("❌ Ошибка при изменении статуса.")
 
 
@@ -98,14 +119,15 @@ async def delete_mailing_cb(call: CallbackQuery) -> None:
     """
     Удаляет выбранную рассылку.
     """
+    user_id = call.from_user.id
     try:
         mailing_id = int(call.data.split(":")[1])
         await delete_mailing(mailing_id)
 
-        await call.message.edit_text("🗑 Рассылка удалена.", reply_markup=back_to_menu_kb())
+        await call.message.edit_text("🗑️ Рассылка удалена.", reply_markup=back_to_menu_kb())
         await call.answer("Удалено ✅")
 
-        logger.info(f"Рассылка {mailing_id} удалена пользователем {call.from_user.id}")
+        logger.info(f"[Mailing {mailing_id}] Пользователь {user_id} удалил рассылку.")
 
     except Exception as e:
         logger.exception(f"Ошибка при удалении рассылки: {e}")
@@ -117,25 +139,24 @@ async def edit_text_start(call: CallbackQuery, state: FSMContext) -> None:
     """
     Начинает процесс редактирования текста рассылки.
     """
+    user_id = call.from_user.id
     try:
         mailing_id = int(call.data.split(":")[1])
         await state.update_data(edit_id=mailing_id)
-
         await call.message.answer("✏️ Введите новый текст рассылки:", reply_markup=back_to_menu_kb())
         await state.set_state(MailingManageState.edit_text)
         await call.answer()
-
-        logger.debug(f"Пользователь {call.from_user.id} редактирует рассылку {mailing_id}")
-
+        logger.debug(f"[Mailing {mailing_id}] Пользователь {user_id} начал редактирование текста.")
     except Exception as e:
-        logger.exception(f"Ошибка при начале редактирования: {e}")
+        logger.exception(f"Ошибка при запуске редактирования рассылки: {e}")
         await call.answer("❌ Ошибка при редактировании.")
 
 
 async def edit_text_finish(message: Message, state: FSMContext) -> None:
     """
-    Завершает редактирование текста рассылки.
+    Завершает редактирование текста рассылки и сохраняет изменения.
     """
+    user_id = message.from_user.id
     try:
         data = await state.get_data()
         mailing_id = data.get("edit_id")
@@ -144,11 +165,16 @@ async def edit_text_finish(message: Message, state: FSMContext) -> None:
             await message.answer("⚠️ Не найдена рассылка для редактирования.", reply_markup=back_to_menu_kb())
             return
 
-        await update_mailing(mailing_id, text=message.text)
-        await message.answer("✅ Текст рассылки обновлён.", reply_markup=back_to_menu_kb())
+        new_text = message.text.strip()
+        if not new_text:
+            await message.answer("⚠️ Текст не может быть пустым. Попробуйте снова.")
+            return
+
+        await update_mailing(mailing_id, text=new_text)
+        await message.answer("✅ Текст рассылки успешно обновлён.", reply_markup=back_to_menu_kb())
         await state.clear()
 
-        logger.info(f"Рассылка {mailing_id} обновлена пользователем {message.from_user.id}")
+        logger.info(f"[Mailing {mailing_id}] Пользователь {user_id} обновил текст рассылки.")
 
     except Exception as e:
         logger.exception(f"Ошибка при обновлении текста рассылки: {e}")

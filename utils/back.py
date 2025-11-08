@@ -15,27 +15,38 @@ router = Router()
 
 # ========================= Обработчик "Назад в меню" ========================= #
 @router.callback_query(F.data == "back_to_menu")
-async def back_to_menu(callback: CallbackQuery, state: FSMContext) -> None:
+async def handle_back_to_menu(callback: CallbackQuery, state: FSMContext) -> None:
     """
-    Возвращает пользователя в главное меню и сбрасывает состояние FSM.
+    Возвращает пользователя в главное меню.
+    Очищает FSM-состояние и обновляет сообщение.
     """
     user_id = callback.from_user.id
+    logger.debug(f"🔙 Пользователь {user_id} нажал 'Назад в меню'")
+
     try:
-        # Очищаем текущее состояние (FSM)
+        # Сброс текущего состояния
         await state.clear()
 
-        # Возврат в главное меню
-        await callback.message.edit_text(
-            text=LEXICON_RU["welcome"],
-            reply_markup=keyboard_utils.main_kb(),
-        )
+        # Попытка отредактировать текущее сообщение (если есть)
+        try:
+            await callback.message.edit_text(
+                text=LEXICON_RU["welcome"],
+                reply_markup=keyboard_utils.main_kb(),
+            )
+        except Exception as edit_error:
+            # Если сообщение уже не редактируемое — просто отправим новое
+            logger.debug(f"Не удалось отредактировать сообщение (user={user_id}): {edit_error}")
+            await callback.message.answer(
+                text=LEXICON_RU["welcome"],
+                reply_markup=keyboard_utils.main_kb(),
+            )
 
         await callback.answer()
-        logger.info(f"🔙 Пользователь {user_id} вернулся в главное меню")
+        logger.info(f"🔁 Пользователь {user_id} успешно возвращён в главное меню")
 
     except Exception as e:
         logger.exception(f"❌ Ошибка при возврате пользователя {user_id} в главное меню: {e}")
         try:
             await callback.message.answer(LEXICON_RU["unexpected_error"])
-        except Exception:
-            logger.error("Не удалось отправить сообщение об ошибке пользователю.")
+        except Exception as inner_e:
+            logger.error(f"Не удалось уведомить пользователя об ошибке: {inner_e}")

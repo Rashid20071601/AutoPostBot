@@ -1,32 +1,44 @@
 # ========================= Импорт библиотек ========================= #
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 import logging
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-from database.connection import get_db_url
 from config.config import load_config
+from database.connection import get_db_url
 
 
-# ========================= Настройка конфигурации ========================= #
-config = load_config()
+# ========================= Инициализация логгера и конфигурации ========================= #
 logger = logging.getLogger(__name__)
+config = load_config()
 
 
-# ========================= Создание движка ========================= #
+# ========================= Создание асинхронного движка ========================= #
 engine = create_async_engine(
     url=get_db_url(config),
-    echo=config.log.level == "DEBUG",  # Включаем SQL-echo только при DEBUG
-    pool_pre_ping=True,                # Проверка соединений перед использованием
-    pool_size=10,                      # Размер пула подключений
-    max_overflow=20,                   # Резервные подключения
-    future=True
+    echo=config.log.level.upper() == "DEBUG",  # Показывать SQL только при DEBUG
+    pool_pre_ping=True,                        # Проверяет соединение перед использованием
+    pool_size=10,                              # Размер пула соединений
+    max_overflow=20,                           # Доп. соединения при пиках нагрузки
+    pool_timeout=30,                           # Максимальное ожидание при нехватке соединений
+    pool_recycle=1800,                         # Пересоздание соединений каждые 30 минут
+    future=True,
 )
 
-logger.info(f"📦 Подключение к БД установлено ({config.db.name}@{config.db.host}:{config.db.port})")
+logger.info(
+    f"📦 Подключение к PostgreSQL установлено: "
+    f"{config.db.user}@{config.db.host}:{config.db.port}/{config.db.name}"
+)
 
 
-# ========================= Фабрика сессий ========================= #
+# ========================= Фабрика асинхронных сессий ========================= #
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
-    expire_on_commit=False,
-    class_=AsyncSession
+    expire_on_commit=False,  # Не выгружать объекты из сессии после commit()
+    class_=AsyncSession,
 )
+
+
+# ========================= Тест подключения к базе данных ========================= #
+async def test_db_connection():
+    async with engine.begin() as conn:
+        await conn.run_sync(lambda conn: None)
+    logger.info("✅ Проверка подключения к БД прошла успешно")

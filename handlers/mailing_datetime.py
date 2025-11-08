@@ -1,11 +1,11 @@
 # ========================= Импорт библиотек ========================= #
+import logging
+from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest, TelegramNotFound
+from aiogram.types import CallbackQuery
+from aiogram.fsm.context import FSMContext
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Calendar, Select, Group
 from aiogram_dialog.widgets.text import Const, Format
-from aiogram.types import CallbackQuery
-from aiogram.fsm.context import FSMContext
-from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest, TelegramNotFound
-import logging
 
 from lexicon.lexicon import LEXICON_RU
 from states.states import MailingState
@@ -19,38 +19,37 @@ logger = logging.getLogger(__name__)
 
 
 # ========================= Обработчики выбора ========================= #
-async def on_date_selected(callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str):
-    """
-    Сохраняет выбранную пользователем дату рассылки и
-    переводит диалог к выбору часа.
-    """
+async def on_date_selected(
+    callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str
+):
+    """Сохраняет дату публикации и переходит к выбору часа."""
     dialog_manager.dialog_data["scheduled_date"] = item_id
-    logger.debug(f"User={callback.from_user.id} выбрал дату: {item_id}")
+    logger.debug(f"[MailingDialog] user={callback.from_user.id} выбрал дату {item_id}")
     await dialog_manager.next()
 
 
-async def on_hour_selected(callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str):
-    """
-    Сохраняет выбранный час и переводит диалог к выбору минут.
-    """
+async def on_hour_selected(
+    callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str
+):
+    """Сохраняет час публикации и переходит к выбору минут."""
     dialog_manager.dialog_data["hour"] = int(item_id)
-    logger.debug(f"User={callback.from_user.id} выбрал час: {item_id}")
+    logger.debug(f"[MailingDialog] user={callback.from_user.id} выбрал час {item_id}")
     await dialog_manager.next()
 
 
-async def on_minute_selected(callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str):
-    """
-    Сохраняет выбранные минуты и переводит диалог к выбору канала.
-    """
+async def on_minute_selected(
+    callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str
+):
+    """Сохраняет минуты публикации и переходит к выбору канала."""
     dialog_manager.dialog_data["minute"] = int(item_id)
-    logger.debug(f"User={callback.from_user.id} выбрал минуты: {item_id}")
+    logger.debug(f"[MailingDialog] user={callback.from_user.id} выбрал минуты {item_id}")
     await dialog_manager.next()
 
 
+# ========================= Получение каналов пользователя ========================= #
 async def get_channels(dialog_manager: DialogManager, event_from_user, **kwargs) -> dict:
     """
-    Получает список каналов, привязанных к пользователю.
-    Возвращает словарь для отображения кнопок в окне выбора канала.
+    Возвращает список каналов пользователя для отображения в Select.
     """
     user_id = event_from_user.id
     channels = await get_user_channels(user_id=user_id)
@@ -59,45 +58,44 @@ async def get_channels(dialog_manager: DialogManager, event_from_user, **kwargs)
         {"id": ChannelsCallbackFactory(channel_id=ch["id"]).pack(), "title": ch["title"]}
         for ch in channels
     ]
-    logger.info(f"Загружено {len(items)} каналов для user={user_id}")
+
+    logger.info(f"[MailingDialog] user={user_id} — найдено {len(items)} каналов")
     return {"channels": items}
 
 
-async def on_channel_selected(callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str):
-    """
-    Проверяет, есть ли у бота права администратора в выбранном канале.
-    Создает запись о рассылке в базе данных.
-    """
+# ========================= Проверка канала и создание рассылки ========================= #
+async def on_channel_selected(
+    callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str
+):
+    """Проверяет права бота и создаёт запись о рассылке в базе данных."""
     user_id = callback.from_user.id
-    data = ChannelsCallbackFactory.unpack(item_id)
-    channel_id = data.channel_id
+    channel_data = ChannelsCallbackFactory.unpack(item_id)
+    channel_id = channel_data.channel_id
     dialog_manager.dialog_data["channel"] = channel_id
 
-    logger.debug(f"User={user_id} выбрал канал {channel_id} — проверяем права...")
+    logger.debug(f"[MailingDialog] user={user_id} выбрал канал {channel_id}, проверяем доступ...")
 
+    # --- Проверка прав бота в канале --- #
     try:
         chat_member = await callback.bot.get_chat_member(channel_id, callback.bot.id)
         if chat_member.status not in ("administrator", "creator"):
             raise TelegramForbiddenError("Bot is not an admin in the channel")
 
-        # Проверяем возможность отправки сообщения
+        # Проверка возможности публикации
         test_msg = await callback.bot.send_message(channel_id, LEXICON_RU["test_message"])
         await callback.bot.delete_message(channel_id, test_msg.message_id)
-        logger.debug(f"Тестовое сообщение в канал {channel_id} успешно отправлено и удалено")
+        logger.debug(f"[MailingDialog] Тестовое сообщение успешно отправлено в канал {channel_id}")
 
     except (TelegramBadRequest, TelegramForbiddenError, TelegramNotFound) as e:
-        logger.warning(
-            f"Ошибка доступа к каналу {channel_id} для user={user_id}: {type(e).__name__} — {e}"
-        )
+        logger.warning(f"[MailingDialog] Нет доступа к каналу {channel_id} ({type(e).__name__}): {e}")
         await callback.message.answer(LEXICON_RU["mailing_message_error"])
         return
-
     except Exception as e:
-        logger.exception(f"Неизвестная ошибка при проверке канала {channel_id}: {e}")
+        logger.exception(f"[MailingDialog] Неизвестная ошибка при проверке канала {channel_id}: {e}")
         await callback.message.answer(LEXICON_RU["unexpected_error"])
         return
 
-    # Получаем данные рассылки из контекста
+    # --- Извлечение данных рассылки --- #
     data = dialog_manager.dialog_data
     text = data.get("text") or dialog_manager.start_data.get("text")
     image_file_id = data.get("image_file_id") or dialog_manager.start_data.get("image_file_id")
@@ -106,11 +104,11 @@ async def on_channel_selected(callback: CallbackQuery, widget: Select, dialog_ma
     minute = data.get("minute")
 
     logger.info(
-        f"Создаём рассылку для user={user_id}: "
+        f"[MailingDialog] Создаём рассылку user={user_id}: "
         f"дата={scheduled_date}, время={hour}:{minute:02d}, канал={channel_id}"
     )
 
-    # Добавляем запись в базу данных
+    # --- Создание записи в БД --- #
     try:
         await add_mailing(
             text=text,
@@ -118,41 +116,43 @@ async def on_channel_selected(callback: CallbackQuery, widget: Select, dialog_ma
             scheduled_date=scheduled_date,
             hour=hour,
             minute=minute,
-            channel_id=channel_id
+            channel_id=channel_id,
         )
-        logger.info(f"Рассылка успешно создана для user={user_id} в канал={channel_id}")
+        logger.info(f"[MailingDialog] Рассылка создана успешно user={user_id}, channel={channel_id}")
     except Exception as e:
-        logger.exception(f"Ошибка при добавлении рассылки: {e}")
+        logger.exception(f"[MailingDialog] Ошибка при добавлении рассылки: {e}")
         await callback.message.answer(LEXICON_RU["unexpected_error"])
-        return  # ❗ прекращаем выполнение при ошибке
+        return
 
-    # ✅ 1. Завершаем диалог
-    dialog_manager.dialog_data.clear()
-    await dialog_manager.done()
-
-    # ✅ 2. Очищаем FSM состояние пользователя (чтобы не залипало)
+    # --- Завершение диалога и возврат --- #
     try:
-        state = FSMContext(
-            storage=dialog_manager.event.bot.dispatcher.storage,
-            key=dialog_manager.event.bot.dispatcher.fsm_key_builder(
-                bot_id=dialog_manager.event.bot.id,
-                user_id=callback.from_user.id,
-                chat_id=callback.message.chat.id,
-            )
-        )
-        await state.clear()
-        logger.debug(f"FSM состояние очищено для user={user_id}")
+        dialog_manager.dialog_data.clear()
+        await dialog_manager.done()
+        logger.debug(f"[MailingDialog] Диалог завершён для user={user_id}")
     except Exception as e:
-        logger.warning(f"Не удалось очистить FSM состояние для user={user_id}: {e}")
+        logger.warning(f"[MailingDialog] Ошибка при завершении диалога: {e}")
 
-    # ✅ 3. Возвращаем пользователя в главное меню
+    # FSM очищаем мягко — без жёсткой пересборки
+    try:
+        state = FSMContext(dialog_manager.event.bot.dispatcher.storage,
+                           dialog_manager.event.bot.dispatcher.fsm_key_builder(
+                               bot_id=dialog_manager.event.bot.id,
+                               user_id=callback.from_user.id,
+                               chat_id=callback.message.chat.id,
+                           ))
+        await state.clear()
+        logger.debug(f"[MailingDialog] FSM очищен для user={user_id}")
+    except Exception as e:
+        logger.warning(f"[MailingDialog] Не удалось очистить FSM для user={user_id}: {e}")
+
+    # Возврат в главное меню
     await callback.message.edit_text(
         text=LEXICON_RU["mailing_created"],
-        reply_markup=main_kb()
+        reply_markup=main_kb(),
     )
 
 
-# ========================= Окна диалога ========================= #
+# ========================= Диалог выбора даты и канала ========================= #
 date_window = Window(
     Const(LEXICON_RU["select_date"]),
     Calendar(id="cal", on_click=on_date_selected),

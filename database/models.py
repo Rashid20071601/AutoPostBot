@@ -1,9 +1,21 @@
 # ========================= Импорт библиотек ========================= #
-from sqlalchemy import BigInteger, ForeignKey, Date, Index, Boolean, String
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
-from typing import Annotated
 from datetime import date
+from typing import Annotated, List, Optional
 
+from sqlalchemy import (
+    BigInteger,
+    ForeignKey,
+    Date,
+    Index,
+    Boolean,
+    String,
+)
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    DeclarativeBase,
+    relationship,
+)
 
 # ========================= Общие типы ========================= #
 intpk = Annotated[int, mapped_column(primary_key=True, autoincrement=True)]
@@ -22,19 +34,20 @@ class UserORM(Base):
     """
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)   # Telegram ID пользователя
-    first_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    last_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)  # Telegram ID
+    first_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    channels: Mapped[list["ChannelORM"]] = relationship(
+    channels: Mapped[List["ChannelORM"]] = relationship(
         "ChannelORM",
         back_populates="owner",
         cascade="all, delete-orphan",
-        passive_deletes=True
+        passive_deletes=True,
     )
 
     def __repr__(self) -> str:
-        return f"<UserORM id={self.id} name={self.first_name} {self.last_name}>"
+        full_name = f"{self.first_name or ''} {self.last_name or ''}".strip()
+        return f"<UserORM id={self.id} name='{full_name}'>"
 
 
 # ========================= Модель каналов ========================= #
@@ -49,7 +62,7 @@ class ChannelORM(Base):
     channel_name: Mapped[str] = mapped_column(String(128), nullable=False)
     owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
     )
 
     owner: Mapped["UserORM"] = relationship("UserORM", back_populates="channels")
@@ -66,8 +79,8 @@ class MailingORM(Base):
     __tablename__ = "mailings"
 
     id: Mapped[intpk]
-    text: Mapped[str] = mapped_column(nullable=False)
-    image_file_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    text: Mapped[str] = mapped_column(String, nullable=False)
+    image_file_id: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     scheduled_date: Mapped[date] = mapped_column(Date, nullable=False)
     hour: Mapped[int] = mapped_column(nullable=False)
     minute: Mapped[int] = mapped_column(nullable=False)
@@ -82,7 +95,6 @@ class MailingORM(Base):
             "minute",
             "enabled",
             "channel_id",
-            unique=False,
         ),
     )
 

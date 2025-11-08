@@ -3,30 +3,38 @@ from aiogram.fsm.state import State, StatesGroup
 
 
 # ========================= Состояния для создания рассылки ========================= #
-class MailingState(StatesGroup):
+class MailingCreation(StatesGroup):
     """
     Состояния FSM при создании новой рассылки.
-    Используется в handlers/mailing_fsm.py и mailing_datetime.py
+
+    Логика:
+      1️⃣ Пользователь вводит текст
+      2️⃣ Прикрепляет (или пропускает) изображение
+      3️⃣ Выбирает дату, время и канал публикации
     """
     text = State()              # Ввод текста рассылки
-    image_file_id = State()     # Добавление изображения
-    scheduled_date = State()    # Выбор даты
-    hour = State()              # Выбор часа
-    minute = State()            # Выбор минут
-    channel = State()           # Выбор канала
+    image_file_id = State()     # Добавление изображения (опционально)
+    scheduled_date = State()    # Выбор даты публикации
+    hour = State()              # Выбор часа публикации
+    minute = State()            # Выбор минут публикации
+    channel = State()           # Выбор канала публикации
 
 
 # ========================= Состояния для добавления канала ========================= #
-class ChannelState(StatesGroup):
+class ChannelAdding(StatesGroup):
     """
     Состояния FSM при добавлении нового канала пользователем.
+
+    Логика:
+      1️⃣ Пользователь вводит имя канала
+      2️⃣ Затем вводит его Telegram ID
     """
     channel_name = State()      # Ввод названия канала
     channel_id = State()        # Ввод ID канала
 
 
 # ========================= Состояния для управления рассылками ========================= #
-class MailingManageState(StatesGroup):
+class MailingManagement(StatesGroup):
     """
     Состояния FSM при редактировании или управлении существующими рассылками.
     """
