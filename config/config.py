@@ -21,6 +21,17 @@ class LogSettings:
     filemode: str
     encoding: str
 
+    def as_dict(self) -> dict:
+        """Возвращает словарь для передачи в logging.basicConfig."""
+        return {
+            "level": self.get_level(),
+            "format": self.format,
+            "filename": self.filename,
+            "filemode": self.filemode,
+            "encoding": self.encoding,
+            "style": "{",
+        }
+
     def get_level(self) -> int:
         """Возвращает уровень логирования как int для logging.basicConfig"""
         if not isinstance(self.level, str):
@@ -76,8 +87,8 @@ def load_config(path: Optional[str] = None) -> Config:
         log=LogSettings(
             level=env.str("LOG_LEVEL", "INFO"),
             format=env.str("LOG_FORMAT", "[{asctime}] #{levelname:<8} {filename}:{lineno} - {message}"),
-            filename=env.str("LOG_FILENAME", "bot.log"),
-            filemode=env.str("LOG_FILEMODE", "a"),
+            filename=env.str("LOG_FILENAME", "logs.log"),
+            filemode=env.str("LOG_FILEMODE", "w"),
             encoding=env.str("LOG_ENCODING", "utf-8"),
         ),
         db=DBSettings(
@@ -88,9 +99,5 @@ def load_config(path: Optional[str] = None) -> Config:
             name=env.str("POSTGRES_DB", "autopostbot"),
         ),
     )
-
-    # 6️⃣ Логируем, какой файл загружен
-    logging.basicConfig(level=logging.INFO, format="[{asctime}] {levelname:<8} {message}", style="{")
-    logging.info(f"📦 Загрузка конфигурации: {env_file} (режим: {env_type.upper()})")
 
     return config

@@ -13,6 +13,7 @@ class MailingCreation(StatesGroup):
       3️⃣ Выбирает дату, время и канал публикации
     """
     text = State()              # Ввод текста рассылки
+    ask_image = State()         # Next time
     image_file_id = State()     # Добавление изображения (опционально)
     scheduled_date = State()    # Выбор даты публикации
     hour = State()              # Выбор часа публикации

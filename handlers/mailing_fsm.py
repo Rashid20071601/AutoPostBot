@@ -11,7 +11,7 @@ from lexicon.lexicon import LEXICON_RU
 from keyboards import keyboard_utils
 from database.crud.users import create_user, user_exists
 from database.crud.channels import create_channel
-from states.states import MailingState, ChannelState
+from states.states import MailingCreation, ChannelAdding
 
 # ========================= Инициализация ========================= #
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ async def help_callback(call: CallbackQuery) -> None:
 async def prompt_channel_name(call: CallbackQuery, state: FSMContext) -> None:
     """Запрашивает у пользователя имя нового канала."""
     await call.message.edit_text(LEXICON_RU["add_channel_name"])
-    await state.set_state(ChannelState.channel_name)
+    await state.set_state(ChannelAdding.channel_name)
     await call.answer()
     logger.debug(f"[Channel] Пользователь {call.from_user.id} начал добавление канала.")
 
@@ -71,7 +71,7 @@ async def receive_channel_name(message: Message, state: FSMContext) -> None:
     """Сохраняет имя канала и переходит к запросу ID."""
     await state.update_data(channel_name=message.text)
     await message.answer(LEXICON_RU["add_channel_id"])
-    await state.set_state(ChannelState.channel_id)
+    await state.set_state(ChannelAdding.channel_id)
     logger.debug(f"[Channel] {message.from_user.id} указал имя канала: {message.text}")
 
 
@@ -100,7 +100,7 @@ async def receive_channel_id_and_create(message: Message, state: FSMContext) -> 
 
 
 # ========================= Создание рассылки ========================= #
-async def start_mailing_creation(callback: CallbackQuery, state: FSMContext) -> None:
+async def start_mailing_creation(callback: CallbackQuery, state: FSMContext, dialog_manager: DialogManager) -> None:
     """Начало создания рассылки — запрос текста."""
     user_id = callback.from_user.id
     await callback.answer()
@@ -108,67 +108,11 @@ async def start_mailing_creation(callback: CallbackQuery, state: FSMContext) -> 
         text=LEXICON_RU["get_mailing"],
         reply_markup=keyboard_utils.back_to_menu_kb(),
     )
-    await state.set_state(MailingState.text)
+    await dialog_manager.start(
+        MailingCreation.text,
+        mode=StartMode.RESET_STACK
+    )
     logger.debug(f"[Mailing] Пользователь {user_id} начал создание рассылки.")
-
-
-async def set_mailing_text(message: Message, state: FSMContext) -> None:
-    """Сохраняет текст рассылки и предлагает добавить изображение."""
-    user_id = message.from_user.id
-    text = message.text.strip() if message.text else None
-
-    if not text:
-        await message.answer(LEXICON_RU["text_error"])
-        logger.warning(f"[Mailing] user={user_id} отправил пустое сообщение.")
-        return
-
-    await state.update_data(text=text)
-    await message.answer(
-        text=LEXICON_RU["ask_about_image"],
-        reply_markup=keyboard_utils.add_image_kb(),
-    )
-    logger.debug(f"[Mailing] user={user_id} ввёл текст рассылки ({len(text)} символов).")
-
-
-async def set_mailing_image(callback: CallbackQuery, state: FSMContext) -> None:
-    """Переход к шагу добавления изображения."""
-    await callback.answer()
-    await callback.message.answer(LEXICON_RU["get_image"])
-    await state.set_state(MailingState.image_file_id)
-    logger.debug(f"[Mailing] user={callback.from_user.id} выбрал добавление изображения.")
-
-
-async def get_mailing_image(message: Message, state: FSMContext, dialog_manager: DialogManager) -> None:
-    """Получает изображение рассылки и запускает диалог выбора даты."""
-    user_id = message.from_user.id
-
-    if not message.photo:
-        await message.answer(LEXICON_RU["image_error"])
-        logger.warning(f"[Mailing] user={user_id} не прислал фото, ожидая изображение.")
-        return
-
-    image_file_id = message.photo[-1].file_id
-    await state.update_data(image_file_id=image_file_id)
-    logger.debug(f"[Mailing] user={user_id} отправил изображение (file_id={image_file_id}).")
-
-    await dialog_manager.start(
-        MailingState.scheduled_date,
-        mode=StartMode.RESET_STACK,
-        data=await state.get_data(),
-    )
-    logger.debug(f"[Mailing] user={user_id} перешёл к выбору даты рассылки.")
-
-
-async def skip_image_and_start_dialog(callback: CallbackQuery, state: FSMContext, dialog_manager: DialogManager) -> None:
-    """Пропускает добавление изображения и запускает выбор даты рассылки."""
-    user_id = callback.from_user.id
-    await callback.answer()
-    await dialog_manager.start(
-        MailingState.scheduled_date,
-        mode=StartMode.RESET_STACK,
-        data=await state.get_data(),
-    )
-    logger.debug(f"[Mailing] user={user_id} пропустил изображение и перешёл к выбору даты.")
 
 
 # ========================= Регистрация хэндлеров ========================= #
@@ -179,12 +123,8 @@ router.callback_query.register(help_callback, F.data == "help", StateFilter(defa
 
 # Добавление канала
 router.callback_query.register(prompt_channel_name, F.data == "add_channel")
-router.message.register(receive_channel_name, StateFilter(ChannelState.channel_name))
-router.message.register(receive_channel_id_and_create, StateFilter(ChannelState.channel_id))
+router.message.register(receive_channel_name, StateFilter(ChannelAdding.channel_name))
+router.message.register(receive_channel_id_and_create, StateFilter(ChannelAdding.channel_id))
 
 # Создание рассылки
 router.callback_query.register(start_mailing_creation, F.data == "create_post", StateFilter(default_state))
-router.message.register(set_mailing_text, StateFilter(MailingState.text))
-router.callback_query.register(set_mailing_image, F.data == "image_add", StateFilter(MailingState.text))
-router.message.register(get_mailing_image, F.content_type == "photo", StateFilter(MailingState.image_file_id))
-router.callback_query.register(skip_image_and_start_dialog, F.data == "image_skip", StateFilter(MailingState.text))

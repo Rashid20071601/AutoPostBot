@@ -1,21 +1,61 @@
 # ========================= Импорт библиотек ========================= #
 import logging
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest, TelegramNotFound
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Calendar, Select, Group
 from aiogram_dialog.widgets.text import Const, Format
+from aiogram_dialog.widgets.input import MessageInput
+from aiogram_dialog.widgets.kbd import Button, Row
 
 from lexicon.lexicon import LEXICON_RU
-from states.states import MailingState
+from states.states import MailingCreation
 from database.crud.mailings import add_mailing
-from keyboards.callback_data_factory import get_user_channels, ChannelsCallbackFactory
+from keyboards.callback_data_factory import get_user_channels, ChannelSelectCallback
 from keyboards.keyboard_utils import main_kb
 
 
 # ========================= Настройка логгера ========================= #
 logger = logging.getLogger(__name__)
+
+
+# ========================= Новые шаги для текста и изображения ========================= #
+async def on_text_received(message: Message, widget: MessageInput, dialog_manager: DialogManager):
+    """Сохраняем текст рассылки и переходим к шагу добавления изображения."""
+    user_id = message.from_user.id
+    text = (message.text or "").strip()
+
+    if not text:
+        await message.answer(LEXICON_RU["text_error"])
+        return
+
+    dialog_manager.dialog_data["text"] = text
+    logger.debug(f"[MailingDialog] user={user_id} ввёл текст рассылки ({len(text)} символов).")
+    await dialog_manager.next()
+
+async def on_choose_add_image(callback: CallbackQuery, widget: Button, dialog_manager: DialogManager):
+    """Переход к шагу загрузки изображения."""
+    dialog_manager.dialog_data["add_image"] = True
+    await dialog_manager.next()
+
+async def on_skip_image(callback: CallbackQuery, widget: Button, dialog_manager: DialogManager):
+    """Пропустить добавление изображения."""
+    dialog_manager.dialog_data["add_image"] = False
+    await dialog_manager.switch_to(MailingCreation.scheduled_date)
+    logger.debug(f"[MailingDialog] user={callback.from_user.id} пропустил изображение.")
+
+async def on_image_received(message: Message, widget: MessageInput, dialog_manager: DialogManager):
+    """Получаем изображение рассылки и переходим к выбору даты."""
+    user_id = message.from_user.id
+    if not message.photo:
+        await message.answer(LEXICON_RU["image_error"])
+        return
+
+    image_file_id = message.photo[-1].file_id
+    dialog_manager.dialog_data["image_file_id"] = image_file_id
+    logger.debug(f"[MailingDialog] user={user_id} отправил изображение (file_id={image_file_id}).")
+    await dialog_manager.next()
 
 
 # ========================= Обработчики выбора ========================= #
@@ -55,7 +95,7 @@ async def get_channels(dialog_manager: DialogManager, event_from_user, **kwargs)
     channels = await get_user_channels(user_id=user_id)
 
     items = [
-        {"id": ChannelsCallbackFactory(channel_id=ch["id"]).pack(), "title": ch["title"]}
+        {"id": ChannelSelectCallback(channel_id=ch["id"]).pack(), "title": ch["title"]}
         for ch in channels
     ]
 
@@ -69,7 +109,7 @@ async def on_channel_selected(
 ):
     """Проверяет права бота и создаёт запись о рассылке в базе данных."""
     user_id = callback.from_user.id
-    channel_data = ChannelsCallbackFactory.unpack(item_id)
+    channel_data = ChannelSelectCallback.unpack(item_id)
     channel_id = channel_data.channel_id
     dialog_manager.dialog_data["channel"] = channel_id
 
@@ -97,8 +137,8 @@ async def on_channel_selected(
 
     # --- Извлечение данных рассылки --- #
     data = dialog_manager.dialog_data
-    text = data.get("text") or dialog_manager.start_data.get("text")
-    image_file_id = data.get("image_file_id") or dialog_manager.start_data.get("image_file_id")
+    text = data.get("text")
+    image_file_id = data.get("image_file_id")
     scheduled_date = data.get("scheduled_date")
     hour = data.get("hour")
     minute = data.get("minute")
@@ -153,12 +193,38 @@ async def on_channel_selected(
 
 
 # ========================= Диалог выбора даты и канала ========================= #
+# --- Получение текста ---
+text_window = Window(
+    Const(LEXICON_RU["get_mailing"]),
+    MessageInput(on_text_received, content_types=["text"]),
+    state=MailingCreation.text,
+)
+
+# --- Выбор — добавить изображение или пропустить ---
+choose_image_window = Window(
+    Const(LEXICON_RU["ask_about_image"]),
+    Row(
+        Button(Const(LEXICON_RU["add_image_button"]), id="add_image", on_click=on_choose_add_image),
+        Button(Const(LEXICON_RU["skip_image_button"]), id="skip_image", on_click=on_skip_image),
+    ),
+    state=MailingCreation.ask_image,
+)
+
+# --- Получение изображения ---
+image_window = Window(
+    Const(LEXICON_RU["get_image"]),
+    MessageInput(on_image_received, content_types=["photo"]),
+    state=MailingCreation.image_file_id,
+)
+
+# --- Получение даты ---
 date_window = Window(
     Const(LEXICON_RU["select_date"]),
     Calendar(id="cal", on_click=on_date_selected),
-    state=MailingState.scheduled_date,
+    state=MailingCreation.scheduled_date,
 )
 
+# --- Получение часа ---
 hour_window = Window(
     Const(LEXICON_RU["select_hour"]),
     Group(
@@ -171,9 +237,10 @@ hour_window = Window(
         ),
         width=6,
     ),
-    state=MailingState.hour,
+    state=MailingCreation.hour,
 )
 
+# --- Получение минуты ---
 minute_window = Window(
     Const(LEXICON_RU["select_minute"]),
     Group(
@@ -186,9 +253,10 @@ minute_window = Window(
         ),
         width=6,
     ),
-    state=MailingState.minute,
+    state=MailingCreation.minute,
 )
 
+# --- Выбор канал ---
 channel_window = Window(
     Const(LEXICON_RU["select_channel"]),
     Group(
@@ -201,12 +269,15 @@ channel_window = Window(
         ),
         width=1,
     ),
-    state=MailingState.channel,
+    state=MailingCreation.channel,
     getter=get_channels,
 )
 
 # ========================= Диалог рассылки ========================= #
 mailing_dialog = Dialog(
+    text_window,
+    choose_image_window,
+    image_window,
     date_window,
     hour_window,
     minute_window,

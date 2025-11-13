@@ -7,7 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from config.config import Config, load_config
-from handlers import mailing_fsm, mailing_manage
+from handlers import mailing_fsm, mailing_manage, mailing_pagination
 from handlers.mailing_datetime import mailing_dialog
 from utils.scheduler import start_scheduler
 from utils import back
@@ -38,7 +38,7 @@ async def main() -> None:
     logger.info("🤖 Бот успешно инициализирован")
 
     # ---------- 4. Подключение роутеров и диалогов ----------
-    for router in (mailing_fsm.router, mailing_manage.router, back.router, mailing_dialog):
+    for router in (mailing_fsm.router, mailing_manage.router, back.router, mailing_dialog, mailing_pagination.router):
         dp.include_router(router)
     setup_dialogs(dp)
     logger.info("🧭 Диалоги и роутеры подключены")
@@ -48,7 +48,7 @@ async def main() -> None:
     logger.info("⏰ Планировщик успешно запущен")
 
     # ---------- 6. Тест подключения к базе данных ----------
-    test_db_connection()
+    await test_db_connection()
 
     # ---------- 7. Запуск бота ----------
     logger.info("🚀 Бот запускается... (режим polling)")

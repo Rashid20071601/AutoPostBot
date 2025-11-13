@@ -40,21 +40,6 @@ def main_kb() -> InlineKeyboardMarkup:
 
 
 # ========================= Управление изображением ========================= #
-def add_image_kb() -> InlineKeyboardMarkup:
-    """
-    Клавиатура выбора — добавить изображение или пропустить шаг.
-    Используется после ввода текста рассылки.
-    """
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🖼 Добавить изображение", callback_data="image_add")],
-            [InlineKeyboardButton(text="➡ Пропустить", callback_data="image_skip")],
-        ]
-    )
-    logger.debug("[Keyboard] add_image_kb создана успешно")
-    return keyboard
-
-
 def image_manage_kb() -> InlineKeyboardMarkup:
     """
     Клавиатура управления уже добавленным изображением:
@@ -80,46 +65,26 @@ def image_manage_kb() -> InlineKeyboardMarkup:
 
 
 # ========================= Управление рассылками ========================= #
-def mailing_manage_kb(mailing_id: int, enabled: bool) -> InlineKeyboardMarkup:
-    """
-    Возвращает клавиатуру управления отдельной рассылкой.
-
-    Кнопки:
-    • ✏ Изменить текст
-    • ✅ Вкл / 🚫 Выкл
-    • 🗑 Удалить
-    • 🔙 Вернуться
-    """
-    status_text = "✅ Вкл" if not enabled else "🚫 Выкл"
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✏ Изменить текст",
-                    callback_data=f"edit_text:{mailing_id}",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text=status_text,
-                    callback_data=f"toggle:{mailing_id}",
-                ),
-                InlineKeyboardButton(
-                    text="🗑 Удалить",
-                    callback_data=f"delete:{mailing_id}",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🔙 Вернуться",
-                    callback_data="back_to_menu",
-                ),
-            ],
-        ]
+def mailing_manage_kb(mailing_id: int, enabled: bool, index: int, total: int):
+    status_btn = InlineKeyboardButton(
+        text="🚦 Отключить" if enabled else "🚦 Включить",
+        callback_data=f"toggle:{mailing_id}:{index}:{total}"
     )
-    logger.debug(f"[Keyboard] mailing_manage_kb создана для mailing_id={mailing_id}, enabled={enabled}")
-    return keyboard
+    edit_btn = InlineKeyboardButton(text="✏ Изменить", callback_data=f"edit_text:{mailing_id}:{index}:{total}")
+    delete_btn = InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete:{mailing_id}:{index}:{total}")
+
+    prev_btn = InlineKeyboardButton(text="◀", callback_data=f"page:prev:{index}:{total}")
+    next_btn = InlineKeyboardButton(text="▶", callback_data=f"page:next:{index}:{total}")
+
+    back_btn = InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
+
+    keyboard = [
+        [prev_btn, InlineKeyboardButton(text=f"{index + 1}/{total}", callback_data="noop"), next_btn],
+        [status_btn],
+        [edit_btn, delete_btn],
+        [back_btn],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 # ========================= Кнопка "Назад в меню" ========================= #
