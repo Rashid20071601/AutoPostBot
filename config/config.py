@@ -94,7 +94,7 @@ def load_config(path: Optional[str] = None) -> Config:
         db=DBSettings(
             host=env.str("POSTGRES_HOST", "localhost"),
             port=env.int("POSTGRES_PORT", 5432),
-            user=env.str("POSTGRES_USER", "postgres"),
+            user=env.str("POSTGRES_USER", "rashid"),
             password=env.str("POSTGRES_PASSWORD", ""),
             name=env.str("POSTGRES_DB", "autopostbot"),
         ),
