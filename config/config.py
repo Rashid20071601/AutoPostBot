@@ -66,7 +66,7 @@ def load_config(path: Optional[str] = None) -> Config:
     env = Env()
 
     # 1️⃣ Определяем окружение (по умолчанию — local)
-    env_type = os.getenv("ENV", "local").lower()
+    env_type = os.getenv("ENV", "production").lower()
     env_file = path or f".env.{env_type}"
 
     # 2️⃣ Проверяем наличие файла окружения
