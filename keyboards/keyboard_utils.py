@@ -31,6 +31,9 @@ def main_kb() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📢 Добавить канал", callback_data="add_channel"),
             ],
             [
+                InlineKeyboardButton(text="📣 Управление каналами", callback_data="manage_channel"),
+            ],
+            [
                 InlineKeyboardButton(text="🆘 Помощь", callback_data="help"),
             ],
         ]
@@ -39,38 +42,14 @@ def main_kb() -> InlineKeyboardMarkup:
     return keyboard
 
 
-# ========================= Управление изображением ========================= #
-def image_manage_kb() -> InlineKeyboardMarkup:
-    """
-    Клавиатура управления уже добавленным изображением:
-    • ♻ Заменить
-    • ❌ Удалить
-    • ➡ Продолжить без изменений
-    """
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="♻ Заменить", callback_data="image_change"),
-            ],
-            [
-                InlineKeyboardButton(text="❌ Удалить", callback_data="image_delete"),
-            ],
-            [
-                InlineKeyboardButton(text="➡ Продолжить", callback_data="image_continue"),
-            ],
-        ]
-    )
-    logger.debug("[Keyboard] image_manage_kb создана успешно")
-    return keyboard
-
-
 # ========================= Управление рассылками ========================= #
 def mailing_manage_kb(mailing_id: int, enabled: bool, index: int, total: int):
     status_btn = InlineKeyboardButton(
-        text="🚦 Отключить" if enabled else "🚦 Включить",
+        text="🚫 Выкл" if enabled else "✅ Вкл",
         callback_data=f"toggle:{mailing_id}:{index}:{total}"
     )
-    edit_btn = InlineKeyboardButton(text="✏ Изменить", callback_data=f"edit_text:{mailing_id}:{index}:{total}")
+    edit_text_btn = InlineKeyboardButton(text="✏ Текст", callback_data=f"edit_text:{mailing_id}:{index}:{total}")
+    edit_image_btn = InlineKeyboardButton(text="🖼 Изображение", callback_data=f"edit_image:{mailing_id}:{index}:{total}")
     delete_btn = InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete:{mailing_id}:{index}:{total}")
 
     prev_btn = InlineKeyboardButton(text="◀", callback_data=f"page:prev:{index}:{total}")
@@ -81,7 +60,25 @@ def mailing_manage_kb(mailing_id: int, enabled: bool, index: int, total: int):
     keyboard = [
         [prev_btn, InlineKeyboardButton(text=f"{index + 1}/{total}", callback_data="noop"), next_btn],
         [status_btn],
-        [edit_btn, delete_btn],
+        [edit_text_btn, edit_image_btn],
+        [delete_btn],
+        [back_btn],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+# ========================= Управление каналами ========================= #
+def channel_manage_kb(channel_id: int, index: int, total: int):
+    delete_btn = InlineKeyboardButton(
+        text="🗑 Удалить", callback_data=f"delete_channel:{channel_id}:{index}:{total}"
+    )
+    prev_btn = InlineKeyboardButton(text="◀", callback_data=f"channel_page:prev:{index}:{total}")
+    next_btn = InlineKeyboardButton(text="▶", callback_data=f"channel_page:next:{index}:{total}")
+    back_btn = InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
+
+    keyboard = [
+        [prev_btn, InlineKeyboardButton(text=f"{index + 1}/{total}", callback_data="noop"), next_btn],
+        [delete_btn],
         [back_btn],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

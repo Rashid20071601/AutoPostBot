@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import select, delete
 
 from database.base import AsyncSessionLocal
-from database.models import MailingORM
+from database.models import ChannelORM, MailingORM
 
 
 # ========================= Настройка логгера ========================= #
@@ -131,3 +131,22 @@ async def delete_mailing(mailing_id: int) -> bool:
             await session.rollback()
             logger.exception(f"❌ Ошибка при удалении рассылки {mailing_id}: {e}")
             return False
+
+
+# ========================= Получение рассылок пользователя ========================= #
+async def get_mailings_for_user(user_id: int) -> List[MailingORM]:
+    """
+    Возвращает все рассылки, привязанные к каналам, которыми владеет пользователь user_id.
+    Привязка идёт по полю ChannelORM.channel_id == MailingORM.channel_id.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            # Подзапрос: все channel_id, принадлежащие user_id
+            subq = select(ChannelORM.channel_id).where(ChannelORM.owner_id == user_id)
+            result = await session.scalars(select(MailingORM).where(MailingORM.channel_id.in_(subq)))
+            mailings = result.all()
+            logger.debug(f"📬 Получено {len(mailings)} рассылок для user_id={user_id}.")
+            return mailings
+        except Exception as e:
+            logger.exception(f"Ошибка при получении рассылок для user_id={user_id}: {e}")
+            return []

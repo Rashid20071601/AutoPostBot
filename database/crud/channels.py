@@ -56,6 +56,26 @@ async def get_channels() -> List[ChannelORM]:
             return []
 
 
+# ========================= Получение каналов пользователя ========================= #
+async def get_channels_for_user(user_id: int) -> List[ChannelORM]:
+    """
+    Возвращает каналы из базы данных.
+    Если указан user_id — только каналы этого пользователя.
+    """
+    logger.debug(f"📡 Получение списка каналов для user_id={user_id}")
+    async with AsyncSessionLocal() as session:
+        try:
+            query = select(ChannelORM)
+            if user_id is not None:
+                query = query.where(ChannelORM.owner_id == user_id)
+            result = await session.scalars(query)
+            channels = result.all()
+            logger.debug(f"Найдено каналов: {len(channels)}")
+            return channels
+        except Exception as e:
+            logger.exception(f"Ошибка при получении списка каналов: {e}")
+            return []
+
 # ========================= Удаление канала (опционально) ========================= #
 async def delete_channel(channel_id: int) -> bool:
     """

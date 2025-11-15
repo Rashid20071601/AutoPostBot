@@ -21,7 +21,7 @@ class MailingCreation(StatesGroup):
     channel = State()           # Выбор канала публикации
 
 
-# ========================= Состояния для добавления канала ========================= #
+# ========================= Состояния для добавления и управления каналами ========================= #
 class ChannelAdding(StatesGroup):
     """
     Состояния FSM при добавлении нового канала пользователем.
@@ -33,6 +33,9 @@ class ChannelAdding(StatesGroup):
     channel_name = State()      # Ввод названия канала
     channel_id = State()        # Ввод ID канала
 
+class ChannelManagement(StatesGroup):
+    view_channels = State()  # Просмотр списка каналов
+
 
 # ========================= Состояния для управления рассылками ========================= #
 class MailingManagement(StatesGroup):
@@ -40,3 +43,4 @@ class MailingManagement(StatesGroup):
     Состояния FSM при редактировании или управлении существующими рассылками.
     """
     edit_text = State()         # Изменение текста рассылки
+    edit_image = State()        # Изменение изображения рассылки

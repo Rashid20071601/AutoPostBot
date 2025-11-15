@@ -20,7 +20,7 @@ from keyboards.keyboard_utils import main_kb
 logger = logging.getLogger(__name__)
 
 
-# ========================= Новые шаги для текста и изображения ========================= #
+# ========================= Получение текста и изображения ========================= #
 async def on_text_received(message: Message, widget: MessageInput, dialog_manager: DialogManager):
     """Сохраняем текст рассылки и переходим к шагу добавления изображения."""
     user_id = message.from_user.id
@@ -117,10 +117,6 @@ async def on_channel_selected(
 
     # --- Проверка прав бота в канале --- #
     try:
-        chat_member = await callback.bot.get_chat_member(channel_id, callback.bot.id)
-        if chat_member.status not in ("administrator", "creator"):
-            raise TelegramForbiddenError("Bot is not an admin in the channel")
-
         # Проверка возможности публикации
         test_msg = await callback.bot.send_message(channel_id, LEXICON_RU["test_message"])
         await callback.bot.delete_message(channel_id, test_msg.message_id)
@@ -203,10 +199,14 @@ text_window = Window(
 # --- Выбор — добавить изображение или пропустить ---
 choose_image_window = Window(
     Const(LEXICON_RU["ask_about_image"]),
-    Row(
-        Button(Const(LEXICON_RU["add_image_button"]), id="add_image", on_click=on_choose_add_image),
-        Button(Const(LEXICON_RU["skip_image_button"]), id="skip_image", on_click=on_skip_image),
+    Group(
+       Row(
+            Button(Const(LEXICON_RU["add_image_button"]), id="add_image", on_click=on_choose_add_image),
+            Button(Const(LEXICON_RU["skip_image_button"]), id="skip_image", on_click=on_skip_image),
+        ),
+        width=1,
     ),
+
     state=MailingCreation.ask_image,
 )
 

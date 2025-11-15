@@ -1,6 +1,7 @@
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
 from database.crud.mailings import get_mailing, update_mailing, delete_mailing
@@ -12,10 +13,12 @@ router = Router()
 
 
 # ========================= Отображение карточки ========================= #
-async def show_mailing_page(call: CallbackQuery, mailings, index: int) -> None:
-    """Отображает одну карточку рассылки."""
+async def show_mailing_page(call: CallbackQuery | Message, mailings, index: int) -> None:
+    """Отображает одну карточку рассылки. Работает и для CallbackQuery, и для Message.
+    Если редактирование сообщения невозможно — отправляет новое сообщение (fallback)."""
     mailing = mailings[index]
     total = len(mailings)
+    target = call.message if isinstance(call, CallbackQuery) else call
 
     status = "✅ Активна" if mailing.enabled else "🚫 Отключена"
     scheduled_date = mailing.scheduled_date.strftime("%Y-%m-%d")
@@ -31,10 +34,20 @@ async def show_mailing_page(call: CallbackQuery, mailings, index: int) -> None:
         f"<i>Страница {index + 1}/{total}</i>"
     )
 
-    await call.message.edit_text(
-        msg_text,
-        reply_markup=mailing_manage_kb(mailing.id, mailing.enabled, index, total)
-    )
+    try:
+        # Пытаемся отредактировать существующее сообщение (обычно это сообщение бота)
+        await target.edit_text(
+            msg_text,
+            reply_markup=mailing_manage_kb(mailing.id, mailing.enabled, index, total)
+        )
+    except TelegramBadRequest as e:
+        # Если редактирование невозможно (например, target — пользовательское сообщение),
+        # отправляем новое сообщение ботом в этот чат
+        logger.warning(f"Не удалось редактировать сообщение: {e}. Отправляем новое сообщение (fallback).")
+        await target.answer(
+            msg_text,
+            reply_markup=mailing_manage_kb(mailing.id, mailing.enabled, index, total)
+        )
 
 
 # ========================= Переход между страницами ========================= #
@@ -174,4 +187,56 @@ async def edit_text_finish(message: Message, state: FSMContext) -> None:
     except Exception as e:
         logger.exception(f"Ошибка при обновлении текста рассылки: {e}")
         await message.answer("❌ Ошибка при обновлении текста.", reply_markup=back_to_menu_kb())
+        await state.clear()
+
+
+# ========================= Изменение изображения рассылки ========================= #
+@router.callback_query(F.data.startswith("edit_image:"))
+async def edit_image_start(call: CallbackQuery, state: FSMContext) -> None:
+    """Начало редактирования изображения."""
+    try:
+        _, mailing_id, index_str, total_str = call.data.split(":")
+        mailing_id = int(mailing_id)
+        index = int(index_str)
+        total = int(total_str)
+
+        await state.update_data(edit_id=mailing_id, index=index, total=total)
+        await call.message.answer("🖼 Отправьте новое изображение:", reply_markup=back_to_menu_kb())
+        await state.set_state(MailingManagement.edit_image)
+        await call.answer()
+
+    except Exception as e:
+        logger.exception(f"Ошибка при запуске редактирования изображения: {e}")
+        await call.answer("❌ Ошибка.")
+
+
+@router.message(MailingManagement.edit_image)
+async def edit_image_finish(message: Message, state: FSMContext) -> None:
+    """Сохраняет новое изображение и возвращает просмотр."""
+    try:
+        if not message.photo:
+            await message.answer("⚠ Нужно отправить изображение.")
+            return
+
+        file_id = message.photo[-1].file_id
+
+        data = await state.get_data()
+        mailing_id = data["edit_id"]
+        index = data["index"]
+        total = data["total"]
+
+        await update_mailing(mailing_id, image_file_id=file_id)
+
+        await message.answer("🖼 Изображение обновлено.")
+
+        # Загружаем актуальный список рассылок
+        mailing_ids = (await state.get_data()).get("active_mailings", [])
+        mailings = [await get_mailing(mid) for mid in mailing_ids if await get_mailing(mid)]
+
+        await show_mailing_page(message, mailings, index)
+        await state.clear()
+
+    except Exception as e:
+        logger.exception(f"Ошибка при обновлении изображения: {e}")
+        await message.answer("❌ Ошибка при обновлении изображения.", reply_markup=back_to_menu_kb())
         await state.clear()

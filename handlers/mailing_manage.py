@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from database.crud.mailings import get_mailings
+from database.crud.mailings import get_mailings_for_user
 from keyboards.keyboard_utils import back_to_menu_kb
 from .mailing_pagination import show_mailing_page
 
@@ -20,7 +20,7 @@ async def manage_mailings_callback(call: CallbackQuery, state: FSMContext) -> No
     """
     user_id = call.from_user.id
     try:
-        mailings = await get_mailings()
+        mailings = await get_mailings_for_user(user_id)
         now = datetime.now(ZoneInfo("Europe/Moscow"))
 
         # фильтруем только будущие рассылки
